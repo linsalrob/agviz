@@ -7,9 +7,13 @@ export const LAYOUT_NAMES: LayoutName[] = ['fcose', 'cose', 'breadthfirst', 'cir
 export const LARGE_GRAPH_NODE_THRESHOLD = 5000;
 export const LARGE_GRAPH_EDGE_THRESHOLD = 10000;
 const DEFAULT_LAYOUT_PADDING = 40;
-const CONTAINER_FCOSE_IDEAL_EDGE_LENGTH = 40;
+// Keep contig bars close enough to read as adjacencies while leaving room for labels and rounded rectangles.
+const FCOSE_IDEAL_EDGE_LENGTH = 40;
+// Higher repulsion prevents the wider contig nodes from overlapping in compact graphs.
 const CONTIG_FCOSE_NODE_REPULSION = 8000;
+// Light gravity helps connected components settle without stretching links into long spokes.
 const CONTIG_FCOSE_GRAVITY = 0.25;
+// Extra iterations help fcose converge after accounting for label-aware rectangular node dimensions.
 const CONTIG_FCOSE_NUM_ITERATIONS = 2500;
 
 export function getLayoutOptions(name: LayoutName): cytoscape.LayoutOptions {
@@ -21,7 +25,7 @@ export function getLayoutOptions(name: LayoutName): cytoscape.LayoutOptions {
         fit: true,
         padding: DEFAULT_LAYOUT_PADDING,
         nodeDimensionsIncludeLabels: true,
-        idealEdgeLength: CONTAINER_FCOSE_IDEAL_EDGE_LENGTH,
+        idealEdgeLength: FCOSE_IDEAL_EDGE_LENGTH,
         nodeRepulsion: CONTIG_FCOSE_NODE_REPULSION,
         gravity: CONTIG_FCOSE_GRAVITY,
         numIter: CONTIG_FCOSE_NUM_ITERATIONS,

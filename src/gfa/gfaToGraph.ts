@@ -2,6 +2,8 @@ import type { ParsedGfa, GfaSegment } from './gfaTypes';
 import { tagListToObject } from './parseGfa';
 import type { AssemblyGraph, AssemblyNode, AssemblyEdge, AssemblyGraphStats } from '../graph/graphTypes';
 
+const MIN_VALID_SEGMENT_LENGTH = 1;
+
 function getCoverage(tags: Record<string, string>): number | undefined {
   for (const key of ['DP', 'KC', 'RC', 'FC']) {
     if (tags[key] !== undefined) {
@@ -20,7 +22,7 @@ export function estimateSegmentLength(segment: GfaSegment): number | undefined {
   const ln = segment.tags.find((tag) => tag.name === 'LN');
   if (ln) {
     const parsed = Number.parseInt(ln.value, 10);
-    if (Number.isFinite(parsed) && parsed > 0) {
+    if (Number.isFinite(parsed) && parsed >= MIN_VALID_SEGMENT_LENGTH) {
       return parsed;
     }
   }
