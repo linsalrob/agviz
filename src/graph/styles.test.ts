@@ -23,3 +23,47 @@ describe('defaultStylesheet', () => {
     expect(edgeStyle['label']).toBe('');
   });
 });
+
+// ── regression: no circles ───────────────────────────────────────────────────
+
+describe('defaultStylesheet – regression: node shape is not a circle', () => {
+  it('node shape is not ellipse', () => {
+    const nodeStyle = findStyle('node');
+    expect(nodeStyle['shape']).not.toBe('ellipse');
+  });
+
+  it('node shape is not circle', () => {
+    const nodeStyle = findStyle('node');
+    expect(nodeStyle['shape']).not.toBe('circle');
+  });
+});
+
+// ── regression: no large arrows ──────────────────────────────────────────────
+
+describe('defaultStylesheet – regression: edges have no arrowheads', () => {
+  it('target-arrow-shape is "none"', () => {
+    const edgeStyle = findStyle('edge');
+    expect(edgeStyle['target-arrow-shape']).toBe('none');
+  });
+
+  it('source-arrow-shape is "none"', () => {
+    const edgeStyle = findStyle('edge');
+    expect(edgeStyle['source-arrow-shape']).toBe('none');
+  });
+});
+
+// ── selected styles ───────────────────────────────────────────────────────────
+
+describe('defaultStylesheet – selected node style exists', () => {
+  it('has a node:selected selector', () => {
+    const selected = defaultStylesheet.find((s) => s.selector === 'node:selected');
+    expect(selected).toBeDefined();
+  });
+});
+
+describe('defaultStylesheet – selected edge style exists', () => {
+  it('has an edge:selected selector', () => {
+    const selected = defaultStylesheet.find((s) => s.selector === 'edge:selected');
+    expect(selected).toBeDefined();
+  });
+});

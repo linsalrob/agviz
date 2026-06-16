@@ -1,0 +1,5 @@
+H	VN:Z:1.0
+S	A	ACGT
+S	B	GGTT
+L	A	+	B	+	4M
+P	path1	A+,B+	4M

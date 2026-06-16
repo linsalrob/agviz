@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { parseGfa, parseTags, tagListToObject } from './parseGfa';
+import tinyGfa from '../test/fixtures/tiny.gfa?raw';
+import lengthContrastGfa from '../test/fixtures/length_contrast.gfa?raw';
+import missingLnGfa from '../test/fixtures/missing_ln.gfa?raw';
+import malformedRecordsGfa from '../test/fixtures/malformed_records.gfa?raw';
+import unsupportedRecordsGfa from '../test/fixtures/unsupported_records.gfa?raw';
+import pathsGfa from '../test/fixtures/paths.gfa?raw';
+import duplicateSegmentsGfa from '../test/fixtures/duplicate_segments.gfa?raw';
+import selfLoopGfa from '../test/fixtures/self_loop.gfa?raw';
+import disconnectedGfa from '../test/fixtures/disconnected_components.gfa?raw';
 
 const TINY_GFA = `H\tVN:Z:1.0
 S\tcontig1\tACGTACGT\tLN:i:8\tDP:f:12.4
@@ -165,5 +174,191 @@ describe('parseGfa – malformed L record', () => {
     const result = parseGfa(gfa);
     expect(result.links).toHaveLength(0);
     expect(result.warnings).toHaveLength(1);
+  });
+});
+
+// ── fixture-based tests ──────────────────────────────────────────────────────
+
+describe('parseGfa – fixture: tiny.gfa', () => {
+  it('matches inline TINY_GFA constant', () => {
+    const fromFixture = parseGfa(tinyGfa);
+    const fromInline = parseGfa(TINY_GFA);
+    expect(fromFixture.segments).toHaveLength(fromInline.segments.length);
+    expect(fromFixture.links).toHaveLength(fromInline.links.length);
+  });
+});
+
+describe('parseGfa – fixture: length_contrast.gfa', () => {
+  it('parses 3 segments', () => {
+    const result = parseGfa(lengthContrastGfa);
+    expect(result.segments).toHaveLength(3);
+  });
+
+  it('parses 2 links', () => {
+    const result = parseGfa(lengthContrastGfa);
+    expect(result.links).toHaveLength(2);
+  });
+
+  it('segment names are short, medium, long', () => {
+    const result = parseGfa(lengthContrastGfa);
+    expect(result.segments.map((s) => s.name)).toEqual(['short', 'medium', 'long']);
+  });
+});
+
+describe('parseGfa – fixture: missing_ln.gfa', () => {
+  it('parses segment with * sequence and no LN tag', () => {
+    const result = parseGfa(missingLnGfa);
+    expect(result.segments).toHaveLength(1);
+    expect(result.segments[0].name).toBe('unknown');
+    expect(result.segments[0].sequence).toBe('*');
+  });
+
+  it('produces no warnings for missing LN (parser stores the segment)', () => {
+    const result = parseGfa(missingLnGfa);
+    expect(result.warnings).toHaveLength(0);
+  });
+});
+
+describe('parseGfa – fixture: malformed_records.gfa', () => {
+  it('produces warnings for malformed S and L records', () => {
+    const result = parseGfa(malformedRecordsGfa);
+    expect(result.warnings.length).toBeGreaterThan(0);
+  });
+
+  it('does not silently produce nodes from malformed S record', () => {
+    const result = parseGfa(malformedRecordsGfa);
+    expect(result.segments).toHaveLength(0);
+  });
+
+  it('does not silently produce edges from malformed L record', () => {
+    const result = parseGfa(malformedRecordsGfa);
+    expect(result.links).toHaveLength(0);
+  });
+
+  it('stores unsupported X record', () => {
+    const result = parseGfa(malformedRecordsGfa);
+    expect(result.unsupported.some((u) => u.type === 'X')).toBe(true);
+  });
+
+  it('includes line numbers in warnings', () => {
+    const result = parseGfa(malformedRecordsGfa);
+    expect(result.warnings.some((w) => /Line \d+/.test(w))).toBe(true);
+  });
+});
+
+describe('parseGfa – fixture: unsupported_records.gfa', () => {
+  it('parses the known segment A', () => {
+    const result = parseGfa(unsupportedRecordsGfa);
+    expect(result.segments).toHaveLength(1);
+    expect(result.segments[0].name).toBe('A');
+  });
+
+  it('stores W and J records as unsupported', () => {
+    const result = parseGfa(unsupportedRecordsGfa);
+    const types = result.unsupported.map((u) => u.type);
+    expect(types).toContain('W');
+    expect(types).toContain('J');
+  });
+
+  it('emits warnings for unsupported records', () => {
+    const result = parseGfa(unsupportedRecordsGfa);
+    expect(result.warnings.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('parseGfa – fixture: paths.gfa', () => {
+  it('parses segments and link', () => {
+    const result = parseGfa(pathsGfa);
+    expect(result.segments).toHaveLength(2);
+    expect(result.links).toHaveLength(1);
+  });
+
+  it('parses the P record', () => {
+    const result = parseGfa(pathsGfa);
+    expect(result.paths).toHaveLength(1);
+    expect(result.paths[0].name).toBe('path1');
+  });
+});
+
+describe('parseGfa – fixture: duplicate_segments.gfa', () => {
+  it('parses both segment records (parser does not deduplicate)', () => {
+    const result = parseGfa(duplicateSegmentsGfa);
+    expect(result.segments).toHaveLength(2);
+  });
+
+  it('both segments have id A', () => {
+    const result = parseGfa(duplicateSegmentsGfa);
+    expect(result.segments[0].name).toBe('A');
+    expect(result.segments[1].name).toBe('A');
+  });
+});
+
+describe('parseGfa – fixture: self_loop.gfa', () => {
+  it('parses one segment and one self-loop link', () => {
+    const result = parseGfa(selfLoopGfa);
+    expect(result.segments).toHaveLength(1);
+    expect(result.links).toHaveLength(1);
+  });
+
+  it('self-loop link has same from and to', () => {
+    const result = parseGfa(selfLoopGfa);
+    const link = result.links[0];
+    expect(link.from).toBe('A');
+    expect(link.to).toBe('A');
+  });
+});
+
+describe('parseGfa – fixture: disconnected_components.gfa', () => {
+  it('parses 3 segments', () => {
+    const result = parseGfa(disconnectedGfa);
+    expect(result.segments).toHaveLength(3);
+  });
+
+  it('parses 1 link', () => {
+    const result = parseGfa(disconnectedGfa);
+    expect(result.links).toHaveLength(1);
+  });
+});
+
+// ── tag edge cases ────────────────────────────────────────────────────────────
+
+describe('parseTags – values with colons', () => {
+  it('preserves value with extra colons intact', () => {
+    // XX:B:i,1,2,3 – the value after TYPE: may contain colons
+    const tags = parseTags(['CL:Z:rgb(0:0:255)']);
+    expect(tags).toHaveLength(1);
+    expect(tags[0].value).toBe('rgb(0:0:255)');
+  });
+
+  it('parses B-type array tag without truncating value', () => {
+    const tags = parseTags(['XX:B:i,1,2,3']);
+    expect(tags).toHaveLength(1);
+    expect(tags[0].value).toBe('i,1,2,3');
+  });
+});
+
+// ── trailing newlines / whitespace ───────────────────────────────────────────
+
+describe('parseGfa – trailing newline', () => {
+  it('handles trailing newline without producing extra warnings', () => {
+    const result = parseGfa('S\ta\tACGT\n');
+    expect(result.segments).toHaveLength(1);
+    expect(result.warnings).toHaveLength(0);
+  });
+});
+
+// ── regression tests ─────────────────────────────────────────────────────────
+
+describe('parseGfa – regression: segment sequence length used correctly', () => {
+  it('sequence ACGTACGT gives 8-character sequence', () => {
+    const result = parseGfa('S\tA\tACGTACGT\n');
+    expect(result.segments[0].sequence).toBe('ACGTACGT');
+    expect(result.segments[0].sequence.length).toBe(8);
+  });
+
+  it('sequence * is not a real sequence', () => {
+    const result = parseGfa('S\tA\t*\tLN:i:12345\n');
+    expect(result.segments[0].sequence).toBe('*');
+    expect(tagListToObject(result.segments[0].tags)['LN']).toBe('12345');
   });
 });
