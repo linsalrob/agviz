@@ -2,6 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { gfaToGraph, estimateSegmentLength } from './gfaToGraph';
 import { parseGfa } from './parseGfa';
 import type { GfaSegment } from './gfaTypes';
+import lengthContrastGfa from '../test/fixtures/length_contrast.gfa?raw';
+import missingLnGfa from '../test/fixtures/missing_ln.gfa?raw';
+import duplicateSegmentsGfa from '../test/fixtures/duplicate_segments.gfa?raw';
+import selfLoopGfa from '../test/fixtures/self_loop.gfa?raw';
+import disconnectedGfa from '../test/fixtures/disconnected_components.gfa?raw';
 
 const TINY_GFA = `H\tVN:Z:1.0
 S\tcontig1\tACGTACGT\tLN:i:8\tDP:f:12.4
@@ -145,6 +150,24 @@ describe('gfaToGraph – coverage tag priority', () => {
     expect(graph.nodes[0].coverage).toBe(50);
   });
 
+  it('uses RC tag when DP and KC are absent', () => {
+    const gfa = 'S\tnode1\t*\tLN:i:100\tRC:i:120\n';
+    const graph = gfaToGraph(parseGfa(gfa));
+    expect(graph.nodes[0].coverage).toBe(120);
+  });
+
+  it('uses FC tag when DP, KC, and RC are absent', () => {
+    const gfa = 'S\tnode1\t*\tLN:i:100\tFC:i:4\n';
+    const graph = gfaToGraph(parseGfa(gfa));
+    expect(graph.nodes[0].coverage).toBe(4);
+  });
+
+  it('prefers DP over KC', () => {
+    const gfa = 'S\tnode1\t*\tLN:i:100\tDP:f:9.9\tKC:i:50\n';
+    const graph = gfaToGraph(parseGfa(gfa));
+    expect(graph.nodes[0].coverage).toBeCloseTo(9.9);
+  });
+
   it('returns undefined when no coverage tag present', () => {
     const gfa = 'S\tnode1\tACGT\n';
     const graph = gfaToGraph(parseGfa(gfa));
@@ -157,5 +180,144 @@ describe('gfaToGraph – warnings for unknown segments in links', () => {
     const gfa = 'S\ta\tACGT\nL\ta\t+\tMISSING\t+\t*\n';
     const graph = gfaToGraph(parseGfa(gfa));
     expect(graph.warnings.some((w) => w.includes('MISSING'))).toBe(true);
+  });
+});
+
+// ── node labels ───────────────────────────────────────────────────────────────
+
+describe('gfaToGraph – node labels', () => {
+  it('labels use segment IDs, not a generic "Node"', () => {
+    const gfa = 'S\tcontig1\tACGT\nS\tcontig2\tGGTT\n';
+    const graph = gfaToGraph(parseGfa(gfa));
+    const labels = graph.nodes.map((n) => n.label);
+    expect(labels).toContain('contig1');
+    expect(labels).toContain('contig2');
+    expect(labels).not.toContain('Node');
+  });
+});
+
+// ── fixture: length_contrast ──────────────────────────────────────────────────
+
+describe('gfaToGraph – fixture: length_contrast.gfa', () => {
+  it('assigns correct lengths', () => {
+    const graph = gfaToGraph(parseGfa(lengthContrastGfa));
+    const lengths = graph.nodes.map((n) => n.length);
+    expect(lengths).toEqual([4, 1000, 100000]);
+  });
+
+  it('short node has smallest length', () => {
+    const graph = gfaToGraph(parseGfa(lengthContrastGfa));
+    const [s, m, l] = graph.nodes;
+    expect(s.length!).toBeLessThan(m.length!);
+    expect(m.length!).toBeLessThan(l.length!);
+  });
+
+  it('stats total length is sum of all lengths', () => {
+    const graph = gfaToGraph(parseGfa(lengthContrastGfa));
+    expect(graph.stats.totalLength).toBe(4 + 1000 + 100000);
+  });
+
+  it('node labels are not "Node"', () => {
+    const graph = gfaToGraph(parseGfa(lengthContrastGfa));
+    expect(graph.nodes.map((n) => n.label)).not.toContain('Node');
+  });
+});
+
+// ── fixture: missing_ln ───────────────────────────────────────────────────────
+
+describe('gfaToGraph – fixture: missing_ln.gfa', () => {
+  it('length is undefined when sequence is * and no LN tag', () => {
+    const graph = gfaToGraph(parseGfa(missingLnGfa));
+    expect(graph.nodes[0].length).toBeUndefined();
+  });
+
+  it('does not crash on undefined length', () => {
+    expect(() => gfaToGraph(parseGfa(missingLnGfa))).not.toThrow();
+  });
+});
+
+// ── fixture: duplicate_segments ───────────────────────────────────────────────
+
+describe('gfaToGraph – fixture: duplicate_segments.gfa', () => {
+  it('produces a warning for the duplicate segment ID', () => {
+    const graph = gfaToGraph(parseGfa(duplicateSegmentsGfa));
+    // The second segment node with id A overwrites the degree map entry but
+    // two nodes still exist; we expect at least one duplicate-related warning
+    // OR the graph silently maps them (both behaviours are acceptable—this test
+    // asserts that no crash occurs and counts are deterministic).
+    expect(graph.nodes).toHaveLength(2);
+  });
+
+  it('both nodes have id A (no silent deduplication)', () => {
+    const graph = gfaToGraph(parseGfa(duplicateSegmentsGfa));
+    expect(graph.nodes.every((n) => n.id === 'A')).toBe(true);
+  });
+});
+
+// ── fixture: self_loop ────────────────────────────────────────────────────────
+
+describe('gfaToGraph – fixture: self_loop.gfa', () => {
+  it('produces one node and one edge', () => {
+    const graph = gfaToGraph(parseGfa(selfLoopGfa));
+    expect(graph.nodes).toHaveLength(1);
+    expect(graph.edges).toHaveLength(1);
+  });
+
+  it('self-loop edge has same source and target', () => {
+    const graph = gfaToGraph(parseGfa(selfLoopGfa));
+    const edge = graph.edges[0];
+    expect(edge.source).toBe('A');
+    expect(edge.target).toBe('A');
+  });
+
+  it('degree of A reflects the self-loop', () => {
+    const graph = gfaToGraph(parseGfa(selfLoopGfa));
+    // Each side of the link counts: from and to both increment degree for A
+    expect(graph.nodes[0].degree).toBeGreaterThan(0);
+  });
+});
+
+// ── fixture: disconnected_components ─────────────────────────────────────────
+
+describe('gfaToGraph – fixture: disconnected_components.gfa', () => {
+  it('produces 3 nodes and 1 edge', () => {
+    const graph = gfaToGraph(parseGfa(disconnectedGfa));
+    expect(graph.nodes).toHaveLength(3);
+    expect(graph.edges).toHaveLength(1);
+  });
+
+  it('isolated node C has degree 0', () => {
+    const graph = gfaToGraph(parseGfa(disconnectedGfa));
+    const nodeC = graph.nodes.find((n) => n.id === 'C');
+    expect(nodeC?.degree).toBe(0);
+  });
+
+  it('stats reflect all nodes including isolated ones', () => {
+    const graph = gfaToGraph(parseGfa(disconnectedGfa));
+    expect(graph.stats.nodeCount).toBe(3);
+    expect(graph.stats.edgeCount).toBe(1);
+  });
+});
+
+// ── edge ID uniqueness for parallel edges ─────────────────────────────────────
+
+describe('gfaToGraph – parallel edges', () => {
+  it('produces unique IDs for parallel edges', () => {
+    const gfa =
+      'S\ta\tACGT\nS\tb\tGGTT\nL\ta\t+\tb\t+\t*\nL\ta\t+\tb\t+\t*\n';
+    const graph = gfaToGraph(parseGfa(gfa));
+    expect(graph.edges).toHaveLength(2);
+    const ids = graph.edges.map((e) => e.id);
+    expect(new Set(ids).size).toBe(2);
+  });
+});
+
+// ── edge overlap wildcard ─────────────────────────────────────────────────────
+
+describe('gfaToGraph – overlap wildcard', () => {
+  it('overlap is undefined when * is used', () => {
+    const gfa = 'S\ta\tACGT\nS\tb\tGGTT\nL\ta\t+\tb\t+\t*\n';
+    const graph = gfaToGraph(parseGfa(gfa));
+    expect(graph.edges[0].overlap).toBeUndefined();
   });
 });

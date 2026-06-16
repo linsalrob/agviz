@@ -1,9 +1,9 @@
 import type cytoscape from 'cytoscape';
 import type { AssemblyGraph } from './graphTypes';
 
-export type LayoutName = 'fcose' | 'cose' | 'circle' | 'concentric' | 'grid';
+export type LayoutName = 'fcose' | 'cose' | 'breadthfirst' | 'circle' | 'concentric' | 'grid';
 
-export const LAYOUT_NAMES: LayoutName[] = ['fcose', 'circle', 'concentric', 'cose', 'grid'];
+export const LAYOUT_NAMES: LayoutName[] = ['fcose', 'circle', 'concentric', 'cose', 'breadthfirst', 'grid'];
 
 export const LARGE_GRAPH_NODE_THRESHOLD = 5000;
 export const LARGE_GRAPH_EDGE_THRESHOLD = 10000;
@@ -65,6 +65,16 @@ export function getLayoutOptions(name: LayoutName): cytoscape.LayoutOptions {
         nodeDimensionsIncludeLabels: false,
         concentric: (node: cytoscape.NodeSingular) => node.degree(),
         levelWidth: () => 2,
+      } as cytoscape.LayoutOptions;
+    case 'breadthfirst':
+      return {
+        name: 'breadthfirst',
+        animate: false,
+        fit: true,
+        padding: DEFAULT_LAYOUT_PADDING,
+        directed: false,
+        avoidOverlap: true,
+        nodeDimensionsIncludeLabels: false,
       } as cytoscape.LayoutOptions;
     case 'grid':
       return {
