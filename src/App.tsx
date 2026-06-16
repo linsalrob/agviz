@@ -42,7 +42,7 @@ function App() {
   const loadExample = useCallback(
     async (example: string) => {
       try {
-        const res = await fetch(`/examples/${example}`);
+        const res = await fetch(`${import.meta.env.BASE_URL}examples/${example}`);
         if (!res.ok) throw new Error(`Failed to fetch ${example}: ${res.statusText}`);
         const text = await res.text();
         loadGfa(text, example);
