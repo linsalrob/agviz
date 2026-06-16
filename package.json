@@ -4,6 +4,9 @@
   "description": "Browser-native genome assembly graph visualisation",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
