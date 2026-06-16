@@ -95,10 +95,6 @@ export function deduplicateReciprocalLinks(edges: AssemblyEdge[]): DeduplicatedL
     }
 
     const shouldCollapse = members.some((edge) => {
-      const reciprocalSignature = reciprocalEdgeSignature(edge);
-      if (!reciprocalSignature) {
-        return false;
-      }
       const ownSignature = edgeSignature(
         edge.source,
         edge.sourceOrient,
@@ -106,6 +102,10 @@ export function deduplicateReciprocalLinks(edges: AssemblyEdge[]): DeduplicatedL
         edge.targetOrient,
         edge.overlap,
       );
+      const reciprocalSignature = reciprocalEdgeSignature(edge);
+      if (!reciprocalSignature) {
+        return false;
+      }
       return reciprocalSignature === ownSignature || signatureMap.has(reciprocalSignature);
     });
 

@@ -131,6 +131,12 @@ describe('InspectorPanel – edge selected', () => {
     render(<InspectorPanel selected={{ kind: 'edge', data: singleEdge }} />);
     expect(screen.getByText('1')).toBeInTheDocument();
   });
+
+  it('does not render raw links section when rawLinks is undefined', () => {
+    const singleEdge: AssemblyEdge = { ...sampleEdge, reciprocalMemberCount: undefined, rawLinks: undefined };
+    render(<InspectorPanel selected={{ kind: 'edge', data: singleEdge }} />);
+    expect(screen.queryByRole('heading', { name: /raw links/i })).not.toBeInTheDocument();
+  });
 });
 
 describe('InspectorPanel – node without optional fields', () => {
