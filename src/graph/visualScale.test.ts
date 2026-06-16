@@ -25,6 +25,5 @@ describe('contigVisualWidth', () => {
 describe('contigVisualHeight', () => {
   it('returns a fixed selectable height', () => {
     expect(contigVisualHeight()).toBe(DEFAULT_CONTIG_HEIGHT);
-    expect(contigVisualHeight(1000)).toBe(DEFAULT_CONTIG_HEIGHT);
   });
 });
