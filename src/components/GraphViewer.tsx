@@ -22,6 +22,43 @@ type SelectedElement =
   | { kind: 'edge'; data: AssemblyEdge }
   | null;
 
+function selectedElementFromEdgeData(data: Record<string, unknown>): SelectedElement {
+  if (data.kind === 'contig-body') {
+    return {
+      kind: 'node',
+      data: {
+        id: String(data.segmentId),
+        label: String(data.label ?? data.segmentId),
+        length: data.lengthBp as number | undefined,
+        sequence: data.sequence as string | undefined,
+        coverage: data.coverage as number | undefined,
+        degree: data.degree as number | undefined,
+        tags: (data.tags as Record<string, string>) ?? {},
+      },
+    };
+  }
+
+  if (data.kind === 'gfa-link') {
+    return {
+      kind: 'edge',
+      data: {
+        id: String(data.originalEdgeId ?? data.id),
+        source: String(data.sourceSegment),
+        target: String(data.targetSegment),
+        sourceOrient: data.sourceOrient as '+' | '-' | undefined,
+        targetOrient: data.targetOrient as '+' | '-' | undefined,
+        overlap: data.overlap as string | undefined,
+        tags: (data.tags as Record<string, string>) ?? {},
+        reciprocalMemberCount: data.reciprocalMemberCount as number | undefined,
+        reciprocalMembers: (data.reciprocalMembers as string[] | undefined) ?? undefined,
+        rawLinks: (data.rawLinks as string[] | undefined) ?? undefined,
+      },
+    };
+  }
+
+  return null;
+}
+
 interface GraphViewerProps {
   graph: AssemblyGraph | null;
   layout: LayoutName;
@@ -41,6 +78,7 @@ export function GraphViewer({
   const cyRef = useRef<cytoscape.Core | null>(null);
   const [cyInstance, setCyInstance] = useState<cytoscape.Core | null>(null);
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
+  const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
 
   const handleSelect = useCallback(
     (event: cytoscape.EventObject) => {
@@ -50,47 +88,41 @@ export function GraphViewer({
       }
 
       const data = ele.data() as Record<string, unknown>;
-      if (data.kind === 'contig-body') {
-        const segId = String(data.segmentId);
-        setSelectedSegmentId(segId);
-        onSelect({
-          kind: 'node',
-          data: {
-            id: String(data.segmentId),
-            label: String(data.label ?? data.segmentId),
-            length: data.lengthBp as number | undefined,
-            sequence: data.sequence as string | undefined,
-            coverage: data.coverage as number | undefined,
-            degree: data.degree as number | undefined,
-            tags: (data.tags as Record<string, string>) ?? {},
-          },
-        });
-        return;
-      }
+      const selectedElement = selectedElementFromEdgeData(data);
+      if (!selectedElement) return;
 
-      if (data.kind === 'gfa-link') {
-        onSelect({
-          kind: 'edge',
-          data: {
-            id: String(data.originalEdgeId ?? data.id),
-            source: String(data.sourceSegment),
-            target: String(data.targetSegment),
-            sourceOrient: data.sourceOrient as '+' | '-' | undefined,
-            targetOrient: data.targetOrient as '+' | '-' | undefined,
-            overlap: data.overlap as string | undefined,
-            tags: (data.tags as Record<string, string>) ?? {},
-            reciprocalMemberCount: data.reciprocalMemberCount as number | undefined,
-            reciprocalMembers: (data.reciprocalMembers as string[] | undefined) ?? undefined,
-            rawLinks: (data.rawLinks as string[] | undefined) ?? undefined,
-          },
-        });
-      }
+      setSelectedSegmentId(selectedElement.kind === 'node' ? selectedElement.data.id : null);
+      setSelectedLinkId(selectedElement.kind === 'edge' ? String(data.id) : null);
+      onSelect(selectedElement);
+    },
+    [onSelect],
+  );
+
+  const handleOverlaySelect = useCallback(
+    (selection: { kind: 'segment' | 'link'; id: string }) => {
+      const cy = cyRef.current;
+      if (!cy) return;
+
+      const edgeId = selection.kind === 'segment' ? `body::${selection.id}` : selection.id;
+      const edge = cy.getElementById(edgeId);
+      if (edge.length === 0 || !edge.isEdge()) return;
+
+      cy.elements(':selected').unselect();
+      edge.select();
+
+      const selectedElement = selectedElementFromEdgeData(edge.data() as Record<string, unknown>);
+      if (!selectedElement) return;
+
+      setSelectedSegmentId(selectedElement.kind === 'node' ? selectedElement.data.id : null);
+      setSelectedLinkId(selectedElement.kind === 'edge' ? edgeId : null);
+      onSelect(selectedElement);
     },
     [onSelect],
   );
 
   const handleUnselect = useCallback(() => {
     setSelectedSegmentId(null);
+    setSelectedLinkId(null);
     onSelect(null);
   }, [onSelect]);
 
@@ -128,6 +160,7 @@ export function GraphViewer({
   // Reset segment selection whenever the graph changes so stale highlights are cleared
   useEffect(() => {
     setSelectedSegmentId(null);
+    setSelectedLinkId(null);
   }, [graph]);
 
   useEffect(() => {
@@ -186,6 +219,8 @@ export function GraphViewer({
         themeMode={themeMode}
         colorByCoverage={colorByCoverage}
         selectedSegmentId={selectedSegmentId}
+        selectedLinkId={selectedLinkId}
+        onSelectElement={handleOverlaySelect}
       />
     </div>
   );

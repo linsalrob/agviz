@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, waitFor } from '@testing-library/react';
 import { GraphOverlay } from './GraphOverlay';
 import type { AssemblyGraph } from '../graph/graphTypes';
 
@@ -134,7 +134,7 @@ describe('GraphOverlay', () => {
     );
 
     await waitFor(() => {
-      const paths = container.querySelectorAll('path');
+      const paths = container.querySelectorAll('path.graph-overlay-segment-visible');
       expect(paths).toHaveLength(2);
     });
   });
@@ -152,7 +152,7 @@ describe('GraphOverlay', () => {
     );
 
     await waitFor(() => {
-      const path = container.querySelector('path');
+      const path = container.querySelector('path.graph-overlay-segment-visible');
       expect(path).not.toBeNull();
       expect(path!.getAttribute('d')).toMatch(/ A /);
     });
@@ -171,7 +171,7 @@ describe('GraphOverlay', () => {
     );
 
     await waitFor(() => {
-      const paths = container.querySelectorAll('path');
+      const paths = container.querySelectorAll('path.graph-overlay-segment-visible');
       expect(paths.length).toBeGreaterThanOrEqual(1);
       // All segment paths should use quadratic Bezier (Q), not straight lines
       paths.forEach((p) => {
@@ -193,7 +193,7 @@ describe('GraphOverlay', () => {
     );
 
     await waitFor(() => {
-      const paths = container.querySelectorAll('path');
+      const paths = container.querySelectorAll('path.graph-overlay-segment-visible');
       expect(paths.length).toBeGreaterThan(0);
       paths.forEach((p) => {
         expect(p.getAttribute('d')).not.toMatch(/ L /);
@@ -214,7 +214,7 @@ describe('GraphOverlay', () => {
     );
 
     await waitFor(() => {
-      const path = container.querySelector('path');
+      const path = container.querySelector('path.graph-overlay-segment-visible');
       expect(path!.getAttribute('stroke')).toBe('#2563eb');
     });
   });
@@ -232,7 +232,7 @@ describe('GraphOverlay', () => {
     );
 
     await waitFor(() => {
-      const paths = container.querySelectorAll('path');
+      const paths = container.querySelectorAll('path.graph-overlay-segment-visible');
       expect(paths.length).toBeGreaterThan(0);
       // Coverage colours should be rgb(...) values, not the default hex contig colour
       paths.forEach((p) => {
@@ -255,11 +255,11 @@ describe('GraphOverlay', () => {
 
     await waitFor(() => {
       // Find path for segment A (first path in DOM order matches first node)
-      const groups = container.querySelectorAll('g');
-      expect(groups.length).toBe(2);
+      const segmentPaths = container.querySelectorAll('path.graph-overlay-segment-visible');
+      expect(segmentPaths.length).toBe(2);
 
       // Segment A's path should use the selection colour
-      const aPath = groups[0].querySelector('path');
+      const aPath = segmentPaths[0];
       expect(aPath!.getAttribute('stroke')).toBe('#d97706'); // light theme contigSelectionColor
     });
   });
@@ -277,7 +277,7 @@ describe('GraphOverlay', () => {
     );
 
     await waitFor(() => {
-      const path = container.querySelector('path');
+      const path = container.querySelector('path.graph-overlay-segment-visible');
       expect(path!.getAttribute('stroke')).toBe('#7dd3fc'); // dark theme default contig colour
     });
   });
@@ -295,7 +295,7 @@ describe('GraphOverlay', () => {
     );
 
     await waitFor(() => {
-      const path = container.querySelector('path');
+      const path = container.querySelector('path.graph-overlay-segment-visible');
       expect(path).not.toBeNull();
       // With pan=(50,100) zoom=2: left (0*2+50=50, 0*2+100=100), right (100*2+50=250, 0*2+100=100)
       const d = path!.getAttribute('d')!;
@@ -357,7 +357,74 @@ describe('GraphOverlay', () => {
 
     // No paths should appear
     await waitFor(() => {
-      expect(container.querySelector('path')).toBeNull();
+      expect(container.querySelector('path.graph-overlay-segment-visible')).toBeNull();
     });
   });
+
+  it('renders a link hit path that calls the selection handler', async () => {
+    const cy = makeCyMock(twoSegPositions);
+    const onSelectElement = vi.fn();
+    const { getByTestId } = render(
+      <GraphOverlay
+        cy={cy as never}
+        graph={twoSegmentGraph}
+        themeMode="light"
+        colorByCoverage={false}
+        selectedSegmentId={null}
+        onSelectElement={onSelectElement}
+      />,
+    );
+
+    const hit = await waitFor(() => getByTestId('link-hit-link::A|+|B|+|100M::0'));
+    expect(hit).toHaveAttribute('pointer-events', 'stroke');
+    expect(hit).toHaveAttribute('stroke-width', '12');
+
+    fireEvent.click(hit);
+    expect(onSelectElement).toHaveBeenCalledWith({
+      kind: 'link',
+      id: 'link::A|+|B|+|100M::0',
+    });
+  });
+
+  it('renders a segment hit path that calls the selection handler', async () => {
+    const cy = makeCyMock(twoSegPositions);
+    const onSelectElement = vi.fn();
+    const { getByTestId } = render(
+      <GraphOverlay
+        cy={cy as never}
+        graph={twoSegmentGraph}
+        themeMode="light"
+        colorByCoverage={false}
+        selectedSegmentId={null}
+        onSelectElement={onSelectElement}
+      />,
+    );
+
+    const hit = await waitFor(() => getByTestId('segment-hit-A'));
+    expect(hit).toHaveAttribute('pointer-events', 'stroke');
+    expect(hit).toHaveAttribute('stroke-width', '14');
+
+    fireEvent.click(hit);
+    expect(onSelectElement).toHaveBeenCalledWith({ kind: 'segment', id: 'A' });
+  });
+
+  it('clicking the empty overlay does not select a random item', async () => {
+    const cy = makeCyMock(twoSegPositions);
+    const onSelectElement = vi.fn();
+    const { container } = render(
+      <GraphOverlay
+        cy={cy as never}
+        graph={twoSegmentGraph}
+        themeMode="light"
+        colorByCoverage={false}
+        selectedSegmentId={null}
+        onSelectElement={onSelectElement}
+      />,
+    );
+
+    const svg = await waitFor(() => container.querySelector('svg.graph-overlay'));
+    fireEvent.click(svg!);
+    expect(onSelectElement).not.toHaveBeenCalled();
+  });
+
 });
