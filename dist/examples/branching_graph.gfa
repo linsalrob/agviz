@@ -1,9 +1,0 @@
-H	VN:Z:1.0
-S	root	*	LN:i:2000	DP:f:30
-S	branch1	*	LN:i:800	DP:f:10
-S	branch2	*	LN:i:850	DP:f:11
-S	tip	*	LN:i:500	DP:f:5
-L	root	+	branch1	+	50M
-L	root	+	branch2	+	50M
-L	branch1	+	tip	+	50M
-L	branch2	+	tip	+	50M

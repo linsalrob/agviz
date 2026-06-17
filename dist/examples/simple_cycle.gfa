@@ -1,7 +1,0 @@
-H	VN:Z:1.0
-S	A	*	LN:i:1000	DP:f:20
-S	B	*	LN:i:1500	DP:f:15
-S	C	*	LN:i:900	DP:f:8
-L	A	+	B	+	100M
-L	B	+	C	+	100M
-L	C	+	A	+	100M
