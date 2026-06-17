@@ -125,6 +125,11 @@ export function GraphViewer({
     cy.style(createStylesheet(themeMode));
   }, [themeMode]);
 
+  // Reset segment selection whenever the graph changes so stale highlights are cleared
+  useEffect(() => {
+    setSelectedSegmentId(null);
+  }, [graph]);
+
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy) return;
