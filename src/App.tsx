@@ -25,7 +25,10 @@ function getInitialTheme(): ThemeMode {
     return 'light';
   }
 
-  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  const stored =
+    typeof localStorage.getItem === 'function'
+      ? localStorage.getItem(THEME_STORAGE_KEY)
+      : null;
   if (stored === 'dark' || stored === 'light') {
     return stored;
   }
@@ -76,7 +79,9 @@ function App() {
 
   const handleThemeModeChange = useCallback((next: ThemeMode) => {
     setThemeMode(next);
-    localStorage.setItem(THEME_STORAGE_KEY, next);
+    if (typeof localStorage.setItem === 'function') {
+      localStorage.setItem(THEME_STORAGE_KEY, next);
+    }
   }, []);
 
   return (

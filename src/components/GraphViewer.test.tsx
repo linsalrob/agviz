@@ -167,4 +167,42 @@ describe('GraphViewer', () => {
     expect(firstA?.data.visualLength).not.toBe(secondA?.data.visualLength);
     expect(secondA?.data.visualLength).toBe(60);
   });
+
+  it('uses graph-normalised log visual lengths for curved segment endpoints', () => {
+    const contrastGraph: AssemblyGraph = {
+      nodes: [
+        { id: 'short', label: 'short', length: 2751, tags: {} },
+        { id: 'long', label: 'long', length: 6893472, tags: {} },
+        { id: 'middle', label: 'middle', length: 100000, tags: {} },
+      ],
+      edges: [],
+      warnings: [],
+      stats: { nodeCount: 3, edgeCount: 0, totalLength: 6996223 },
+    };
+
+    render(
+      <GraphViewer
+        graph={contrastGraph}
+        layout="fcose"
+        onSelect={vi.fn()}
+        themeMode="light"
+        colorByCoverage={false}
+        segmentLengthScaleMode="log"
+      />,
+    );
+
+    const cy = vi.mocked(cytoscape).mock.results[0].value;
+    const addedElements = cy.add.mock.calls.at(-1)?.[0] as Array<{
+      data: { kind?: string; segmentId?: string; visualLength?: number };
+    }>;
+    const bodyEdges = addedElements.filter((element) => element.data.kind === 'contig-body');
+    const short = bodyEdges.find((element) => element.data.segmentId === 'short');
+    const long = bodyEdges.find((element) => element.data.segmentId === 'long');
+    const middle = bodyEdges.find((element) => element.data.segmentId === 'middle');
+
+    expect(short?.data.visualLength).toBeCloseTo(24);
+    expect(long?.data.visualLength).toBeCloseTo(320);
+    expect(middle?.data.visualLength).toBeGreaterThan(short!.data.visualLength as number);
+    expect(middle?.data.visualLength).toBeLessThan(long!.data.visualLength as number);
+  });
 });

@@ -6,7 +6,7 @@ import {
   type CytoscapeGraphOptions,
 } from './cytoscapeElements';
 import type { AssemblyGraph } from './graphTypes';
-import type { LengthScaleConfig } from './visualScale';
+import { DEFAULT_SEGMENT_LENGTH_SCALE, type LengthScaleConfig } from './visualScale';
 
 const sampleGraph: AssemblyGraph = {
   nodes: [
@@ -90,6 +90,34 @@ describe('graphToCytoscape', () => {
     expect(oneKb?.data.visualLength).toBe(100);
     expect(twoKb?.data.visualLength).toBe(200);
     expect(twoKb!.data.visualLength).toBeCloseTo(oneKb!.data.visualLength * 2);
+  });
+
+  it('uses graph-normalised log visual lengths by default for contig-body edges', () => {
+    const contrastGraph: AssemblyGraph = {
+      nodes: [
+        { id: 'short', label: 'short', length: 2751, tags: {} },
+        { id: 'long', label: 'long', length: 6893472, tags: {} },
+        { id: 'middle', label: 'middle', length: 100000, tags: {} },
+      ],
+      edges: [],
+      warnings: [],
+      stats: { nodeCount: 3, edgeCount: 0, totalLength: 6996223 },
+    };
+
+    const elements = graphToCytoscape(contrastGraph);
+    const bodyEdges = elements.edges.filter((edge) => edge.classes === 'contig-body');
+    const short = bodyEdges.find((edge) => edge.data.segmentId === 'short');
+    const long = bodyEdges.find((edge) => edge.data.segmentId === 'long');
+    const middle = bodyEdges.find((edge) => edge.data.segmentId === 'middle');
+
+    expect(short?.data.visualLength).toBeCloseTo(
+      DEFAULT_SEGMENT_LENGTH_SCALE.minVisualLengthPx,
+    );
+    expect(long?.data.visualLength).toBeCloseTo(
+      DEFAULT_SEGMENT_LENGTH_SCALE.maxVisualLengthPx,
+    );
+    expect(middle?.data.visualLength).toBeGreaterThan(short!.data.visualLength as number);
+    expect(middle?.data.visualLength).toBeLessThan(long!.data.visualLength as number);
   });
 
   it('connects gfa-link edges to endpoint ids only', () => {

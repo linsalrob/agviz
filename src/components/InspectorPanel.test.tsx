@@ -53,6 +53,20 @@ describe('InspectorPanel – node selected', () => {
     expect(screen.getAllByText(/8[,.]?000/).length).toBeGreaterThan(0);
   });
 
+  it('shows true bp length rather than visual length', () => {
+    render(
+      <InspectorPanel
+        selected={{
+          kind: 'node',
+          data: { ...sampleNode, length: 6893472, tags: { LN: '6893472' } },
+        }}
+      />,
+    );
+
+    expect(screen.getByText('6,893,472 bp')).toBeInTheDocument();
+    expect(screen.queryByText('320 bp')).not.toBeInTheDocument();
+  });
+
   it('shows coverage when available', () => {
     render(<InspectorPanel selected={{ kind: 'node', data: sampleNode }} />);
     expect(screen.getAllByText(/12\.4/).length).toBeGreaterThan(0);

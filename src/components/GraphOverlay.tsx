@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import type cytoscape from 'cytoscape';
 import type { AssemblyGraph } from '../graph/graphTypes';
 import type { AssemblyEdge } from '../graph/graphTypes';
@@ -10,9 +10,11 @@ import {
   defaultContigColor,
 } from '../graph/coverageColors';
 import {
+  computeSegmentLengthScaleDomain,
   DEFAULT_SEGMENT_LENGTH_SCALE,
   contigVisualThickness,
   type SegmentLengthScaleConfig,
+  type SegmentLengthScaleDomain,
 } from '../graph/visualScale';
 import { endpointId, graphToCytoscape, mapLinkEndpoints } from '../graph/cytoscapeElements';
 import { deduplicateReciprocalLinks } from '../graph/linkDeduplication';
@@ -188,6 +190,7 @@ export interface GraphOverlayProps {
   layout?: LayoutName;
   selectedLinkId?: string | null;
   lengthScale?: SegmentLengthScaleConfig;
+  lengthScaleDomain?: SegmentLengthScaleDomain;
   onLinkSelect?: (edge: AssemblyEdge) => void;
   onSelectElement?: (selection: { kind: 'segment' | 'link'; id: string }) => void;
 }
@@ -212,6 +215,7 @@ export function GraphOverlay({
   layout,
   selectedLinkId = null,
   lengthScale = DEFAULT_SEGMENT_LENGTH_SCALE,
+  lengthScaleDomain,
   onLinkSelect,
   onSelectElement,
 }: GraphOverlayProps) {
@@ -221,6 +225,11 @@ export function GraphOverlay({
   const rafRef = useRef<number | null>(null);
   const palette = getThemePalette(themeMode);
   const isBandageStyle = layout === 'bandage';
+  const fallbackLengthScaleDomain = useMemo(
+    () => computeSegmentLengthScaleDomain(graph?.nodes.map((node) => node.length) ?? []),
+    [graph],
+  );
+  const effectiveLengthScaleDomain = lengthScaleDomain ?? fallbackLengthScaleDomain;
 
   const buildPaths = useCallback(() => {
     if (!cy || !graph || graph.nodes.length === 0) {
@@ -340,7 +349,12 @@ export function GraphOverlay({
         });
       });
     } else {
-      const elements = graphToCytoscape(graph, { themeMode, colorByCoverage, lengthScale });
+      const elements = graphToCytoscape(graph, {
+        themeMode,
+        colorByCoverage,
+        lengthScale,
+        lengthScaleDomain: effectiveLengthScaleDomain,
+      });
       for (const edge of elements.edges) {
         const data = edge.data as Record<string, unknown>;
         if (data.kind !== 'gfa-link') continue;
@@ -378,7 +392,15 @@ export function GraphOverlay({
 
     setSegmentPaths(newPaths);
     setLinkPaths(newLinkPaths);
-  }, [cy, graph, themeMode, colorByCoverage, isBandageStyle, lengthScale]);
+  }, [
+    cy,
+    graph,
+    themeMode,
+    colorByCoverage,
+    isBandageStyle,
+    lengthScale,
+    effectiveLengthScaleDomain,
+  ]);
 
   // Keep a stable ref to the latest buildPaths so the RAF callback never goes stale
   const buildPathsRef = useRef(buildPaths);
