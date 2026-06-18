@@ -39,7 +39,7 @@ function getInitialTheme(): ThemeMode {
 function App() {
   const [graph, setGraph] = useState<AssemblyGraph | null>(null);
   const [selected, setSelected] = useState<SelectedElement>(null);
-  const [layout, setLayout] = useState<LayoutName>('fcose');
+  const [layout, setLayout] = useState<LayoutName>('bandage');
   const [segmentLengthScaleMode, setSegmentLengthScaleMode] =
     useState<SegmentLengthScaleMode>('log');
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => getInitialTheme());
@@ -54,6 +54,7 @@ function App() {
       const g = gfaToGraph(parsed);
       setGraph(g);
       setSelected(null);
+      setLayout('bandage');
       setFileName(name);
       setWarnings(g.warnings);
       setError(null);
