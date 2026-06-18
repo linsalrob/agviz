@@ -35,7 +35,7 @@ export function computeSegmentLengthScaleDomain(
   lengthsBp: Array<number | undefined>,
 ): SegmentLengthScaleDomain {
   const valid = lengthsBp.filter(
-    (value): value is number => Number.isFinite(value) && value > 0,
+    (value): value is number => value !== undefined && Number.isFinite(value) && value > 0,
   );
 
   if (valid.length === 0) {

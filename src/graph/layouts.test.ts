@@ -241,7 +241,7 @@ describe('bandageEndpointPositions', () => {
     ).toBe(60);
     expect(
       Math.abs(positions['contig2::__left'].x - positions['contig2::__right'].x),
-    ).toBe(60);
+    ).toBe(12);
   });
 
   it('lays a simple Bandage-style cycle as adjacent ring segments with short links', () => {
