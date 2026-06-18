@@ -3,13 +3,13 @@ import { LAYOUT_NAMES } from '../graph/layouts';
 import type { ThemeMode } from '../graph/coverageColors';
 
 const LAYOUT_LABELS: Record<LayoutName, string> = {
-  fcose: 'fcose',
-  bandage: 'bandage',
-  circle: 'circle',
-  concentric: 'concentric',
-  cose: 'cose',
-  breadthfirst: 'breadthfirst',
-  grid: 'grid',
+  fcose: 'fCoSE',
+  bandage: 'Bandage-style',
+  circle: 'Circle',
+  concentric: 'Concentric',
+  cose: 'CoSE',
+  breadthfirst: 'Breadthfirst',
+  grid: 'Grid',
 };
 
 interface ToolbarProps {

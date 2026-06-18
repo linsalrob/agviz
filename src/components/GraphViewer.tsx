@@ -97,47 +97,19 @@ export function GraphViewer({
       }
 
       const data = ele.data() as Record<string, unknown>;
-      if (data.kind === 'contig-body') {
-        const segId = String(data.segmentId);
-        setSelectedSegmentId(segId);
-        setSelectedLinkId(null);
-        onSelect({
-          kind: 'node',
-          data: {
-            id: String(data.segmentId),
-            label: String(data.label ?? data.segmentId),
-            length: data.lengthBp as number | undefined,
-            sequence: data.sequence as string | undefined,
-            coverage: data.coverage as number | undefined,
-            degree: data.degree as number | undefined,
-            tags: (data.tags as Record<string, string>) ?? {},
-          },
-        });
-        return;
-      }
-
-      if (data.kind === 'gfa-link') {
-        selectLink({
-          id: String(data.originalEdgeId ?? data.id),
-          source: String(data.sourceSegment),
-          target: String(data.targetSegment),
-          sourceOrient: data.sourceOrient as '+' | '-' | undefined,
-          targetOrient: data.targetOrient as '+' | '-' | undefined,
-          overlap: data.overlap as string | undefined,
-          tags: (data.tags as Record<string, string>) ?? {},
-          reciprocalMemberCount: data.reciprocalMemberCount as number | undefined,
-          reciprocalMembers: (data.reciprocalMembers as string[] | undefined) ?? undefined,
-          rawLinks: (data.rawLinks as string[] | undefined) ?? undefined,
-        });
-      }
       const selectedElement = selectedElementFromEdgeData(data);
       if (!selectedElement) return;
 
-      setSelectedSegmentId(selectedElement.kind === 'node' ? selectedElement.data.id : null);
-      setSelectedLinkId(selectedElement.kind === 'edge' ? String(data.id) : null);
+      if (selectedElement.kind === 'edge') {
+        selectLink(selectedElement.data);
+        return;
+      }
+
+      setSelectedSegmentId(selectedElement.data.id);
+      setSelectedLinkId(null);
       onSelect(selectedElement);
     },
-    [onSelect],
+    [onSelect, selectLink],
   );
 
   const handleOverlaySelect = useCallback(
@@ -155,8 +127,13 @@ export function GraphViewer({
       const selectedElement = selectedElementFromEdgeData(edge.data() as Record<string, unknown>);
       if (!selectedElement) return;
 
-      setSelectedSegmentId(selectedElement.kind === 'node' ? selectedElement.data.id : null);
-      setSelectedLinkId(selectedElement.kind === 'edge' ? edgeId : null);
+      if (selectedElement.kind === 'edge') {
+        selectLink(selectedElement.data);
+        return;
+      }
+
+      setSelectedSegmentId(selectedElement.data.id);
+      setSelectedLinkId(null);
       onSelect(selectedElement);
     },
     [onSelect, selectLink],
@@ -273,7 +250,6 @@ export function GraphViewer({
         layout={layout}
         selectedLinkId={selectedLinkId}
         onLinkSelect={selectLink}
-        selectedLinkId={selectedLinkId}
         onSelectElement={handleOverlaySelect}
       />
     </div>

@@ -10,9 +10,8 @@ import {
   defaultContigColor,
 } from '../graph/coverageColors';
 import { contigVisualThickness } from '../graph/visualScale';
-import { endpointId, mapLinkEndpoints } from '../graph/cytoscapeElements';
+import { endpointId, graphToCytoscape, mapLinkEndpoints } from '../graph/cytoscapeElements';
 import { deduplicateReciprocalLinks } from '../graph/linkDeduplication';
-import { endpointId, graphToCytoscape } from '../graph/cytoscapeElements';
 import { curvedSegmentPath, majorArcPath, graphCentre, type Point } from '../graph/arcGeometry';
 import { getThemePalette } from '../graph/styles';
 import type { LayoutName } from '../graph/layouts';
@@ -31,6 +30,8 @@ interface LinkPath {
   id: string;
   pathD: string;
   edge: AssemblyEdge;
+  selectionId: string;
+  isBandageStyle: boolean;
 }
 
 type BranchSide = -1 | 1;
@@ -172,8 +173,6 @@ function bubbleBranchPath(left: Point, right: Point, side: BranchSide): string {
   };
 
   return `M ${left.x} ${left.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${right.x} ${right.y}`;
-  edgeId: string;
-  pathD: string;
 }
 
 export interface GraphOverlayProps {
@@ -185,7 +184,6 @@ export interface GraphOverlayProps {
   layout?: LayoutName;
   selectedLinkId?: string | null;
   onLinkSelect?: (edge: AssemblyEdge) => void;
-  selectedLinkId?: string | null;
   onSelectElement?: (selection: { kind: 'segment' | 'link'; id: string }) => void;
 }
 
@@ -207,17 +205,13 @@ export function GraphOverlay({
   colorByCoverage,
   selectedSegmentId,
   layout,
-  selectedLinkId,
+  selectedLinkId = null,
   onLinkSelect,
+  onSelectElement,
 }: GraphOverlayProps) {
   const [segmentPaths, setSegmentPaths] = useState<SegmentPath[]>([]);
   const [linkPaths, setLinkPaths] = useState<LinkPath[]>([]);
   const [pressedLinkId, setPressedLinkId] = useState<string | null>(null);
-  selectedLinkId = null,
-  onSelectElement,
-}: GraphOverlayProps) {
-  const [paths, setPaths] = useState<SegmentPath[]>([]);
-  const [linkPaths, setLinkPaths] = useState<LinkPath[]>([]);
   const rafRef = useRef<number | null>(null);
   const palette = getThemePalette(themeMode);
   const isBandageStyle = layout === 'bandage';
@@ -225,7 +219,6 @@ export function GraphOverlay({
   const buildPaths = useCallback(() => {
     if (!cy || !graph || graph.nodes.length === 0) {
       setSegmentPaths([]);
-      setPaths([]);
       setLinkPaths([]);
       return;
     }
@@ -249,7 +242,6 @@ export function GraphOverlay({
 
     if (allViewportPositions.length === 0) {
       setSegmentPaths([]);
-      setPaths([]);
       setLinkPaths([]);
       return;
     }
@@ -303,7 +295,6 @@ export function GraphOverlay({
       });
     }
 
-    const newLinkPaths: LinkPath[] = [];
     if (isBandageStyle) {
       deduplicateReciprocalLinks(graph.edges).forEach((group, index) => {
         const representative = group.representative;
@@ -324,6 +315,8 @@ export function GraphOverlay({
         newLinkPaths.push({
           id,
           pathD: `M ${source.x} ${source.y} L ${target.x} ${target.y}`,
+          selectionId: id,
+          isBandageStyle: true,
           edge: {
             id: representative.id,
             source: representative.source,
@@ -340,32 +333,46 @@ export function GraphOverlay({
           },
         });
       });
+    } else {
+      const elements = graphToCytoscape(graph, { themeMode, colorByCoverage });
+      for (const edge of elements.edges) {
+        const data = edge.data as Record<string, unknown>;
+        if (data.kind !== 'gfa-link') continue;
+
+        const sourceId = String(data.source);
+        const targetId = String(data.target);
+        const sourceEle = cy.getElementById(sourceId);
+        const targetEle = cy.getElementById(targetId);
+        if (sourceEle.length === 0 || targetEle.length === 0) continue;
+
+        const source = modelToViewport(sourceEle.position(), pan, zoom);
+        const target = modelToViewport(targetEle.position(), pan, zoom);
+        const id = String(data.id);
+
+        newLinkPaths.push({
+          id,
+          pathD: curvedSegmentPath(source, target, centre, 0.18),
+          selectionId: id,
+          isBandageStyle: false,
+          edge: {
+            id: String(data.originalEdgeId ?? data.id),
+            source: String(data.sourceSegment),
+            target: String(data.targetSegment),
+            sourceOrient: data.sourceOrient as '+' | '-' | undefined,
+            targetOrient: data.targetOrient as '+' | '-' | undefined,
+            overlap: data.overlap as string | undefined,
+            tags: (data.tags as Record<string, string>) ?? {},
+            reciprocalMemberCount: data.reciprocalMemberCount as number | undefined,
+            reciprocalMembers: (data.reciprocalMembers as string[] | undefined) ?? undefined,
+            rawLinks: (data.rawLinks as string[] | undefined) ?? undefined,
+          },
+        });
+      }
     }
 
     setSegmentPaths(newPaths);
     setLinkPaths(newLinkPaths);
   }, [cy, graph, themeMode, colorByCoverage, isBandageStyle]);
-
-    const elements = graphToCytoscape(graph, { themeMode, colorByCoverage });
-    for (const edge of elements.edges) {
-      const data = edge.data as Record<string, unknown>;
-      if (data.kind !== 'gfa-link') continue;
-      const sourceId = String(data.source);
-      const targetId = String(data.target);
-      const sourceEle = cy.getElementById(sourceId);
-      const targetEle = cy.getElementById(targetId);
-      if (sourceEle.length === 0 || targetEle.length === 0) continue;
-      const source = modelToViewport(sourceEle.position(), pan, zoom);
-      const target = modelToViewport(targetEle.position(), pan, zoom);
-      newLinkPaths.push({
-        edgeId: String(data.id),
-        pathD: curvedSegmentPath(source, target, centre, 0.18),
-      });
-    }
-
-    setPaths(newPaths);
-    setLinkPaths(newLinkPaths);
-  }, [cy, graph, themeMode, colorByCoverage]);
 
   // Keep a stable ref to the latest buildPaths so the RAF callback never goes stale
   const buildPathsRef = useRef(buildPaths);
@@ -407,7 +414,6 @@ export function GraphOverlay({
   }, [graph, layout]);
 
   if (!graph || segmentPaths.length === 0) return null;
-  if (!graph || (paths.length === 0 && linkPaths.length === 0)) return null;
 
   return (
     <svg
@@ -422,8 +428,8 @@ export function GraphOverlay({
         overflow: 'visible',
       }}
     >
-      {linkPaths.map(({ id, pathD, edge }) => {
-        if (edge.id !== pressedLinkId) {
+      {linkPaths.map(({ id, pathD, edge, isBandageStyle: isBandageLink }) => {
+        if (!isBandageLink || edge.id !== pressedLinkId) {
           return null;
         }
 
@@ -440,63 +446,32 @@ export function GraphOverlay({
           />
         );
       })}
-      {linkPaths.map(({ id, pathD, edge }) => {
+      {linkPaths.map(({ id, pathD, edge, isBandageStyle: isBandageLink }) => {
         const isSelected = edge.id === selectedLinkId;
         const strokeColor = isSelected ? palette.edgeSelectionColor : palette.linkColor;
+        const className = isBandageLink ? 'link-path' : 'graph-overlay-link-visible';
 
         return (
           <path
             key={`${id}-visible`}
-            className="link-path"
+            className={className}
             d={pathD}
             stroke={strokeColor}
-            strokeWidth={isSelected ? 2.5 : 1}
+            strokeWidth={isBandageLink ? (isSelected ? 2.5 : 1) : isSelected ? 1.5 : 0.75}
             strokeLinecap="round"
             fill="none"
-            opacity={0.8}
+            opacity={isBandageLink ? 0.8 : 0.75}
           />
         );
       })}
       {segmentPaths.map(({ segmentId, pathD, color, thickness, label, labelX, labelY }) => {
-      {linkPaths.map(({ edgeId, pathD }) => {
-        const isSelected = edgeId === selectedLinkId;
-        return (
-          <g key={edgeId}>
-            <path
-              className="graph-overlay-link-visible"
-              d={pathD}
-              stroke={isSelected ? palette.edgeSelectionColor : palette.linkColor}
-              strokeWidth={isSelected ? 1.5 : 0.75}
-              strokeLinecap="round"
-              fill="none"
-              opacity={0.75}
-            />
-            <path
-              className="graph-overlay-link-hit"
-              data-testid={`link-hit-${edgeId}`}
-              d={pathD}
-              stroke="transparent"
-              strokeWidth={12}
-              strokeLinecap="round"
-              fill="none"
-              pointerEvents="stroke"
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelectElement?.({ kind: 'link', id: edgeId });
-              }}
-            />
-          </g>
-        );
-      })}
-      {paths.map(({ segmentId, pathD, color, thickness, label, labelX, labelY }) => {
         const isSelected = segmentId === selectedSegmentId;
         const strokeColor = isSelected ? palette.contigSelectionColor : color;
 
         return (
           <g key={segmentId}>
             <path
-              className="contig-path"
-              className="graph-overlay-segment-visible"
+              className="contig-path graph-overlay-segment-visible"
               d={pathD}
               stroke={strokeColor}
               strokeWidth={thickness}
@@ -523,7 +498,7 @@ export function GraphOverlay({
               d={pathD}
               stroke="transparent"
               strokeWidth={14}
-              strokeLinecap="round"
+              strokeLinecap={isBandageStyle ? 'butt' : 'round'}
               fill="none"
               pointerEvents="stroke"
               onClick={(event) => {
@@ -531,35 +506,26 @@ export function GraphOverlay({
                 onSelectElement?.({ kind: 'segment', id: segmentId });
               }}
             />
-            <text
-              x={labelX}
-              y={labelY}
-              fill={palette.textColor}
-              fontSize="7"
-              fontWeight="bold"
-              textAnchor="middle"
-              dominantBaseline="middle"
-              style={{ userSelect: 'none' }}
-            >
-              {label}
-            </text>
           </g>
         );
       })}
-      {linkPaths.map(({ id, pathD, edge }) => {
+      {linkPaths.map(({ id, pathD, edge, selectionId, isBandageStyle: isBandageLink }) => {
         return (
           <path
             key={`${id}-hit`}
-            className="link-hit-path"
+            className={isBandageLink ? 'link-hit-path graph-overlay-link-hit' : 'graph-overlay-link-hit'}
+            data-testid={`link-hit-${selectionId}`}
             d={pathD}
             stroke="transparent"
             strokeWidth={12}
             strokeLinecap="round"
             fill="none"
-            style={{ pointerEvents: 'stroke' }}
+            pointerEvents="stroke"
             onPointerDown={(event) => {
               event.stopPropagation();
-              setPressedLinkId(edge.id);
+              if (isBandageLink) {
+                setPressedLinkId(edge.id);
+              }
               event.currentTarget.setPointerCapture?.(event.pointerId);
             }}
             onPointerUp={(event) => {
@@ -576,7 +542,12 @@ export function GraphOverlay({
             }}
             onClick={(event) => {
               event.stopPropagation();
-              onLinkSelect?.(edge);
+              if (isBandageLink) {
+                onLinkSelect?.(edge);
+                return;
+              }
+
+              onSelectElement?.({ kind: 'link', id: selectionId });
             }}
           />
         );

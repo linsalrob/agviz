@@ -668,7 +668,7 @@ describe('GraphOverlay', () => {
     });
   });
 
-  it('renders a link hit path that calls the selection handler', async () => {
+  it('renders a non-Bandage link hit path that calls the selection handler', async () => {
     const cy = makeCyMock(twoSegPositions);
     const onSelectElement = vi.fn();
     render(
