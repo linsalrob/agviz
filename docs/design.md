@@ -11,18 +11,23 @@ AgViz now renders each biological segment with endpoint-aware Cytoscape elements
 
 This keeps the biological model in `AssemblyGraph` while ensuring links attach to distal segment ends.
 
-## Proportional length scaling
+## Segment length scaling
 
-Contig body visual length is linear in bp:
+Contig body visual length defaults to graph-normalised log10 scaling:
 
-`visualLengthPx = lengthBp * pixelsPerBase`
+`visualLengthPx = minVisualLengthPx + logT * (maxVisualLengthPx - minVisualLengthPx)`
+
+where `logT` is the segment's log10 length normalised between the shortest and
+longest known segment lengths in the loaded graph.
 
 Default scale:
 
-- `pixelsPerBase = 0.05`
-- `minVisualLengthPx = 8`
+- `mode = log`
+- `minVisualLengthPx = 24`
+- `maxVisualLengthPx = 320`
 
-Unknown lengths use the minimum visual length.
+Linear and uniform modes are available from the toolbar. Unknown lengths use the
+minimum visual length. True bp lengths are always shown in the inspector.
 
 ## Themes and coverage colouring
 

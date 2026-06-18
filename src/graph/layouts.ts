@@ -2,9 +2,11 @@ import type cytoscape from 'cytoscape';
 import type { AssemblyEdge, AssemblyGraph } from './graphTypes';
 import { endpointId, mapLinkEndpoints, type EndpointSide } from './cytoscapeElements';
 import {
+  computeSegmentLengthScaleDomain,
   DEFAULT_SEGMENT_LENGTH_SCALE,
   contigVisualLength,
   type LengthScaleConfig,
+  type SegmentLengthScaleDomain,
 } from './visualScale';
 
 export type LayoutName =
@@ -203,6 +205,7 @@ function addSegmentEndpointPositions(
 function buildSegmentJunctions(
   graph: AssemblyGraph,
   lengthScale: LengthScaleConfig,
+  lengthScaleDomain: SegmentLengthScaleDomain,
 ): SegmentJunction[] {
   const disjointSet = new DisjointSet();
   const nodeIds = new Set(graph.nodes.map((node) => node.id));
@@ -229,7 +232,7 @@ function buildSegmentJunctions(
     segmentId: node.id,
     leftRoot: disjointSet.find(endpointId(node.id, 'left')),
     rightRoot: disjointSet.find(endpointId(node.id, 'right')),
-    visualLength: contigVisualLength(node.length, lengthScale),
+    visualLength: contigVisualLength(node.length, lengthScale, lengthScaleDomain),
   }));
 }
 
@@ -378,8 +381,12 @@ function oppositeEndpointId(endpoint: string, segmentId: string): string {
     : endpointId(segmentId, 'left');
 }
 
-function tinyGraphSegmentLength(lengthBp: number | undefined, lengthScale: LengthScaleConfig): number {
-  const visualLength = contigVisualLength(lengthBp, lengthScale);
+function tinyGraphSegmentLength(
+  lengthBp: number | undefined,
+  lengthScale: LengthScaleConfig,
+  lengthScaleDomain: SegmentLengthScaleDomain,
+): number {
+  const visualLength = contigVisualLength(lengthBp, lengthScale, lengthScaleDomain);
 
   if (lengthScale.mode === 'uniform' || visualLength > lengthScale.minVisualLengthPx) {
     return visualLength;
@@ -391,6 +398,7 @@ function tinyGraphSegmentLength(lengthBp: number | undefined, lengthScale: Lengt
 function twoSegmentBandageEndpointPositions(
   graph: AssemblyGraph,
   lengthScale: LengthScaleConfig,
+  lengthScaleDomain: SegmentLengthScaleDomain,
 ): Record<string, Point> | null {
   if (graph.nodes.length !== 2 || graph.edges.length !== 1) {
     return null;
@@ -411,8 +419,8 @@ function twoSegmentBandageEndpointPositions(
   );
   const sourceOuterEndpointId = oppositeEndpointId(sourceEndpointId, source.id);
   const targetOuterEndpointId = oppositeEndpointId(targetEndpointId, target.id);
-  const sourceLength = tinyGraphSegmentLength(source.length, lengthScale);
-  const targetLength = tinyGraphSegmentLength(target.length, lengthScale);
+  const sourceLength = tinyGraphSegmentLength(source.length, lengthScale, lengthScaleDomain);
+  const targetLength = tinyGraphSegmentLength(target.length, lengthScale, lengthScaleDomain);
 
   return {
     [sourceOuterEndpointId]: { x: -(BANDAGE_TINY_LINK_HALF_LENGTH + sourceLength), y: 0 },
@@ -472,6 +480,7 @@ function pointOnCycle(angle: number, radius: number): Point {
 function simpleCycleBandageEndpointPositions(
   graph: AssemblyGraph,
   lengthScale: LengthScaleConfig,
+  lengthScaleDomain: SegmentLengthScaleDomain,
 ): Record<string, Point> | null {
   const orderedEdges = orderedDirectedCycle(graph);
   if (!orderedEdges) {
@@ -481,7 +490,7 @@ function simpleCycleBandageEndpointPositions(
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
   const totalVisualLength = orderedEdges.reduce((sum, edge) => {
     const source = nodesById.get(edge.source);
-    return sum + contigVisualLength(source?.length, lengthScale);
+    return sum + contigVisualLength(source?.length, lengthScale, lengthScaleDomain);
   }, 0);
   if (totalVisualLength <= 0) {
     return null;
@@ -492,7 +501,11 @@ function simpleCycleBandageEndpointPositions(
 
   for (const edge of orderedEdges) {
     const source = nodesById.get(edge.source);
-    const sourceVisualLength = contigVisualLength(source?.length, lengthScale);
+    const sourceVisualLength = contigVisualLength(
+      source?.length,
+      lengthScale,
+      lengthScaleDomain,
+    );
     angle += (sourceVisualLength / totalVisualLength) * Math.PI * 2;
 
     const { sourceEndpointId, targetEndpointId } = mapLinkEndpoints(
@@ -654,17 +667,20 @@ function simpleBubbleBandageEndpointPositions(graph: AssemblyGraph): Record<stri
 export function bandageEndpointPositions(
   graph: AssemblyGraph,
   lengthScale: LengthScaleConfig = BANDAGE_LENGTH_SCALE,
+  lengthScaleDomain: SegmentLengthScaleDomain = computeSegmentLengthScaleDomain(
+    graph.nodes.map((node) => node.length),
+  ),
 ): Record<string, Point> {
   if (graph.nodes.length === 0) {
     return {};
   }
 
-  const tinyPositions = twoSegmentBandageEndpointPositions(graph, lengthScale);
+  const tinyPositions = twoSegmentBandageEndpointPositions(graph, lengthScale, lengthScaleDomain);
   if (tinyPositions) {
     return tinyPositions;
   }
 
-  const cyclePositions = simpleCycleBandageEndpointPositions(graph, lengthScale);
+  const cyclePositions = simpleCycleBandageEndpointPositions(graph, lengthScale, lengthScaleDomain);
   if (cyclePositions) {
     return cyclePositions;
   }
@@ -674,7 +690,7 @@ export function bandageEndpointPositions(
     return bubblePositions;
   }
 
-  const segments = buildSegmentJunctions(graph, lengthScale);
+  const segments = buildSegmentJunctions(graph, lengthScale, lengthScaleDomain);
   const adjacency = buildJunctionAdjacency(segments);
   const components = junctionComponents(adjacency);
   const packedJunctionPositions: Record<string, Point> = {};
@@ -740,10 +756,15 @@ export function getLayoutOptions(
   name: LayoutName,
   graph?: AssemblyGraph,
   lengthScale: LengthScaleConfig = BANDAGE_LENGTH_SCALE,
+  lengthScaleDomain: SegmentLengthScaleDomain = graph
+    ? computeSegmentLengthScaleDomain(graph.nodes.map((node) => node.length))
+    : {},
 ): cytoscape.LayoutOptions {
   switch (name) {
     case 'bandage': {
-      const positions = graph ? bandageEndpointPositions(graph, lengthScale) : {};
+      const positions = graph
+        ? bandageEndpointPositions(graph, lengthScale, lengthScaleDomain)
+        : {};
 
       return {
         name: 'preset',

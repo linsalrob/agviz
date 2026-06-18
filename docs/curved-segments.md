@@ -88,17 +88,21 @@ function curvedSegmentPath(left, right, centre, curvature = 0.25): string
 - `curvature` controls the bend: `0` = straight chord, `0.25` = 25% of chord length
 - The control point direction is chosen so segments bow away from the graph centroid
 
-## Proportional length
+## Visual length
 
-Segment length proportionality is preserved at the **data** level.  The
-`visualLength` attribute on each `contig-body` edge is computed as:
+Segment length readability is preserved at the **data** level. The `visualLength`
+attribute on each `contig-body` edge is computed from the selected length scale.
+Log mode is the default:
 
 ```
-visualLength = lengthBp × pixelsPerBase   (minimum: minVisualLengthPx)
+logT = (log10(lengthBp) - log10(graphMinLengthBp))
+     / (log10(graphMaxLengthBp) - log10(graphMinLengthBp))
+visualLength = minVisualLengthPx + logT × (maxVisualLengthPx - minVisualLengthPx)
 ```
 
-with `pixelsPerBase = 0.05` by default. A 2000 bp segment has a `visualLength`
-twice that of a 1000 bp segment.
+Log mode uses graph-normalised log10 scaling so the shortest and longest contigs
+in the loaded graph define the visual length range. Linear and uniform modes are
+available from the toolbar. True bp lengths are always shown in the inspector.
 
 > **Current approximation**: The layout engine (fCoSE / circle) places endpoints
 > at positions it chooses for graph aesthetics. The chord length between a segment's

@@ -33,9 +33,9 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## Rendering model
 
-AgViz uses log-scaled segment lengths by default because assembly graph segments can range from a few base pairs to millions of base pairs. Log scaling keeps longer contigs visibly longer while capping visual length so one large segment does not dominate the canvas.
+AgViz uses log-scaled segment lengths by default because assembly graph segments can range from a few base pairs to millions of base pairs. Log mode uses graph-normalised log10 scaling so the shortest and longest contigs in the loaded graph define the visual length range.
 
-Linear and uniform modes are available from the toolbar. These scales affect readability only; the exact biological length in bp is preserved in the graph model and shown in the inspector.
+Linear and uniform modes are available from the toolbar. These scales affect readability only; the exact biological length in bp is preserved in the graph model and shown in the inspector. True bp lengths are always shown in the inspector.
 
 ## Example files
 

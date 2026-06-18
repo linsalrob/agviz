@@ -14,6 +14,7 @@ import {
 import type { LayoutName } from '../graph/layouts';
 import type { ThemeMode } from '../graph/coverageColors';
 import {
+  computeSegmentLengthScaleDomain,
   DEFAULT_SEGMENT_LENGTH_SCALE,
   type SegmentLengthScaleConfig,
   type SegmentLengthScaleMode,
@@ -92,6 +93,10 @@ export function GraphViewer({
       mode: segmentLengthScaleMode,
     }),
     [segmentLengthScaleMode],
+  );
+  const lengthScaleDomain = useMemo(
+    () => computeSegmentLengthScaleDomain(graph?.nodes.map((node) => node.length) ?? []),
+    [graph],
   );
 
   const selectLink = useCallback(
@@ -221,7 +226,12 @@ export function GraphViewer({
         ? 'grid'
         : defaultedLayout;
 
-    const elements = graphToCytoscape(graph, { themeMode, colorByCoverage, lengthScale });
+    const elements = graphToCytoscape(graph, {
+      themeMode,
+      colorByCoverage,
+      lengthScale,
+      lengthScaleDomain,
+    });
     if (effectiveLayout === 'bandage') {
       for (const edge of elements.edges) {
         if (edge.classes === 'gfa-link') {
@@ -232,13 +242,18 @@ export function GraphViewer({
 
     cy.add([...elements.nodes, ...elements.edges]);
 
-    const layoutOptions = getLayoutOptions(effectiveLayout, graph, lengthScale);
+    const layoutOptions = getLayoutOptions(
+      effectiveLayout,
+      graph,
+      lengthScale,
+      lengthScaleDomain,
+    );
     const layoutRun = cy.layout(layoutOptions);
     cy.one('layoutstop', () => {
       cy.fit(undefined, effectiveLayout === 'bandage' ? 120 : 40);
     });
     layoutRun.run();
-  }, [graph, layout, themeMode, colorByCoverage, lengthScale]);
+  }, [graph, layout, themeMode, colorByCoverage, lengthScale, lengthScaleDomain]);
 
   const palette = getThemePalette(themeMode);
 
@@ -264,6 +279,7 @@ export function GraphViewer({
         layout={layout}
         selectedLinkId={selectedLinkId}
         lengthScale={lengthScale}
+        lengthScaleDomain={lengthScaleDomain}
         onLinkSelect={selectLink}
         onSelectElement={handleOverlaySelect}
       />

@@ -1,10 +1,12 @@
 import type { AssemblyGraph } from './graphTypes';
 import type cytoscape from 'cytoscape';
 import {
+  computeSegmentLengthScaleDomain,
   contigVisualLength,
   contigVisualThickness,
   DEFAULT_LENGTH_SCALE,
   type LengthScaleConfig,
+  type SegmentLengthScaleDomain,
 } from './visualScale';
 import {
   coverageMinMax,
@@ -23,6 +25,7 @@ export interface CytoscapeGraphOptions {
   themeMode?: ThemeMode;
   colorByCoverage?: boolean;
   lengthScale?: LengthScaleConfig;
+  lengthScaleDomain?: SegmentLengthScaleDomain;
 }
 
 export type EndpointSide = 'left' | 'right';
@@ -59,6 +62,9 @@ export function graphToCytoscape(
   const themeMode = options.themeMode ?? 'light';
   const colorByCoverage = options.colorByCoverage ?? false;
   const lengthScale = options.lengthScale ?? DEFAULT_LENGTH_SCALE;
+  const lengthScaleDomain =
+    options.lengthScaleDomain ??
+    computeSegmentLengthScaleDomain(graph.nodes.map((node) => node.length));
 
   const { minCoverage, maxCoverage } = coverageMinMax(graph.nodes.map((node) => node.coverage));
 
@@ -84,7 +90,7 @@ export function graphToCytoscape(
   ]);
 
   const bodyEdges: cytoscape.EdgeDefinition[] = graph.nodes.map((node) => {
-    const visualLength = contigVisualLength(node.length, lengthScale);
+    const visualLength = contigVisualLength(node.length, lengthScale, lengthScaleDomain);
     const thickness = contigVisualThickness();
 
     return {
