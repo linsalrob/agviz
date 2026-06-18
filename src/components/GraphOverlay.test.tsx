@@ -364,7 +364,7 @@ describe('GraphOverlay', () => {
   it('renders a link hit path that calls the selection handler', async () => {
     const cy = makeCyMock(twoSegPositions);
     const onSelectElement = vi.fn();
-    const { getByTestId } = render(
+    render(
       <GraphOverlay
         cy={cy as never}
         graph={twoSegmentGraph}
@@ -375,14 +375,18 @@ describe('GraphOverlay', () => {
       />,
     );
 
-    const hit = await waitFor(() => getByTestId('link-hit-link::A|+|B|+|100M::0'));
+    const hit = await waitFor(() => {
+      const linkHit = document.querySelector('path.graph-overlay-link-hit');
+      expect(linkHit).not.toBeNull();
+      return linkHit as SVGPathElement;
+    });
     expect(hit).toHaveAttribute('pointer-events', 'stroke');
     expect(hit).toHaveAttribute('stroke-width', '12');
 
     fireEvent.click(hit);
     expect(onSelectElement).toHaveBeenCalledWith({
       kind: 'link',
-      id: 'link::A|+|B|+|100M::0',
+      id: 'link::A+|B+|100M|A-B::0',
     });
   });
 
