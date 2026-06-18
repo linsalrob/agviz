@@ -1,16 +1,17 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 
 const graphViewerSpy = vi.hoisted(() => vi.fn());
 
 vi.mock('./components/GraphViewer', () => ({
-  GraphViewer: (props: { segmentLengthScaleMode?: string }) => {
+  GraphViewer: (props: { layout?: string; segmentLengthScaleMode?: string }) => {
     graphViewerSpy(props);
     return (
       <div
         aria-label="Assembly graph canvas"
+        data-layout={props.layout}
         data-scale-mode={props.segmentLengthScaleMode}
         role="img"
       />
@@ -31,6 +32,10 @@ describe('App theme controls', () => {
   beforeEach(() => {
     localStorage.clear();
     graphViewerSpy.mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('defaults to light theme', () => {
@@ -69,6 +74,47 @@ describe('App theme controls', () => {
     render(<App />);
 
     expect(screen.getByRole('option', { name: 'Bandage-style' })).toBeInTheDocument();
+  });
+
+  it('defaults the graph layout to Bandage-style', () => {
+    render(<App />);
+
+    const select = screen.getByRole('combobox', { name: /select layout algorithm/i });
+    expect(select).toHaveValue('bandage');
+    expect(screen.getByRole('img', { name: /assembly graph canvas/i })).toHaveAttribute(
+      'data-layout',
+      'bandage',
+    );
+  });
+
+  it('resets to Bandage-style after loading a GFA example', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        text: async () =>
+          [
+            'H\tVN:Z:1.0',
+            'S\tcontig1\tACGT\tLN:i:4',
+            'S\tcontig2\tGGTT\tLN:i:4',
+            'L\tcontig1\t+\tcontig2\t-\t4M',
+          ].join('\n'),
+      })),
+    );
+
+    render(<App />);
+
+    const select = screen.getByRole('combobox', { name: /select layout algorithm/i });
+    fireEvent.change(select, { target: { value: 'fcose' } });
+    expect(select).toHaveValue('fcose');
+
+    fireEvent.click(screen.getByRole('button', { name: 'tiny.gfa' }));
+
+    await waitFor(() => expect(select).toHaveValue('bandage'));
+    expect(screen.getByRole('img', { name: /assembly graph canvas/i })).toHaveAttribute(
+      'data-layout',
+      'bandage',
+    );
   });
 
   it('defaults the segment length scale control to Log', () => {
