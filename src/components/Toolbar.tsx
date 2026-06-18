@@ -2,6 +2,16 @@ import type { LayoutName } from '../graph/layouts';
 import { LAYOUT_NAMES } from '../graph/layouts';
 import type { ThemeMode } from '../graph/coverageColors';
 
+const LAYOUT_LABELS: Record<LayoutName, string> = {
+  fcose: 'fCoSE',
+  bandage: 'Bandage-style',
+  circle: 'Circle',
+  concentric: 'Concentric',
+  cose: 'CoSE',
+  breadthfirst: 'Breadthfirst',
+  grid: 'Grid',
+};
+
 interface ToolbarProps {
   layout: LayoutName;
   onLayoutChange: (layout: LayoutName) => void;
@@ -31,7 +41,7 @@ export function Toolbar({
       >
         {LAYOUT_NAMES.map((name) => (
           <option key={name} value={name}>
-            {name}
+            {LAYOUT_LABELS[name]}
           </option>
         ))}
       </select>

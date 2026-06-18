@@ -52,4 +52,10 @@ describe('App theme controls', () => {
     const checkbox = screen.getByRole('checkbox', { name: /colour by coverage/i });
     expect(checkbox).not.toBeChecked();
   });
+
+  it('offers the Bandage-style layout', () => {
+    render(<App />);
+
+    expect(screen.getByRole('option', { name: 'Bandage-style' })).toBeInTheDocument();
+  });
 });

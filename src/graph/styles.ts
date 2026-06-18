@@ -94,6 +94,14 @@ export function createStylesheet(themeMode: ThemeMode): cytoscape.StylesheetStyl
         width: 1.5,
       } as cytoscape.Css.Edge,
     },
+    {
+      selector: 'edge.gfa-link.bandage-overlay-hidden',
+      style: {
+        width: 0,
+        opacity: 0,
+        'line-opacity': 0,
+      } as cytoscape.Css.Edge,
+    },
   ];
 }
 

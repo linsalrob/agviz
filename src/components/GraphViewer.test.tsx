@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import cytoscape from 'cytoscape';
 import { GraphViewer } from './GraphViewer';
 import type { AssemblyGraph } from '../graph/graphTypes';
 
@@ -25,6 +26,10 @@ vi.mock('cytoscape', () => {
 });
 
 vi.mock('cytoscape-fcose', () => ({ default: {} }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 const emptyGraph: AssemblyGraph = {
   nodes: [],
@@ -53,11 +58,15 @@ const tinyGraph: AssemblyGraph = {
   stats: { nodeCount: 2, edgeCount: 1, totalLength: 3000 },
 };
 
-function renderViewer(graph: AssemblyGraph | null, themeMode: 'light' | 'dark' = 'light') {
+function renderViewer(
+  graph: AssemblyGraph | null,
+  themeMode: 'light' | 'dark' = 'light',
+  layout: 'fcose' | 'bandage' = 'fcose',
+) {
   return render(
     <GraphViewer
       graph={graph}
-      layout="fcose"
+      layout={layout}
       onSelect={vi.fn()}
       themeMode={themeMode}
       colorByCoverage={false}
@@ -99,5 +108,22 @@ describe('GraphViewer', () => {
     const { container } = renderViewer(null, 'dark');
     const wrapper = container.querySelector('.graph-viewer-wrapper');
     expect(wrapper).toHaveStyle({ background: 'rgb(0, 0, 0)' });
+  });
+
+  it('registers edge select and tap handlers for inspector updates', () => {
+    renderViewer(tinyGraph);
+
+    const cy = vi.mocked(cytoscape).mock.results[0].value;
+    expect(cy.on).toHaveBeenCalledWith('select', 'edge', expect.any(Function));
+    expect(cy.on).toHaveBeenCalledWith('tap', 'edge', expect.any(Function));
+  });
+
+  it('hides Cytoscape gfa-link edges when Bandage-style overlay links are active', () => {
+    renderViewer(tinyGraph, 'light', 'bandage');
+
+    const cy = vi.mocked(cytoscape).mock.results[0].value;
+    const addedElements = cy.add.mock.calls[0][0] as Array<{ classes?: string; data: { kind?: string } }>;
+    const link = addedElements.find((element) => element.data.kind === 'gfa-link');
+    expect(link?.classes).toBe('gfa-link bandage-overlay-hidden');
   });
 });

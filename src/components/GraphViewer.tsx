@@ -80,6 +80,15 @@ export function GraphViewer({
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
 
+  const selectLink = useCallback(
+    (edge: AssemblyEdge) => {
+      setSelectedSegmentId(null);
+      setSelectedLinkId(edge.id);
+      onSelect({ kind: 'edge', data: edge });
+    },
+    [onSelect],
+  );
+
   const handleSelect = useCallback(
     (event: cytoscape.EventObject) => {
       const ele = event.target;
@@ -91,11 +100,16 @@ export function GraphViewer({
       const selectedElement = selectedElementFromEdgeData(data);
       if (!selectedElement) return;
 
-      setSelectedSegmentId(selectedElement.kind === 'node' ? selectedElement.data.id : null);
-      setSelectedLinkId(selectedElement.kind === 'edge' ? String(data.id) : null);
+      if (selectedElement.kind === 'edge') {
+        selectLink(selectedElement.data);
+        return;
+      }
+
+      setSelectedSegmentId(selectedElement.data.id);
+      setSelectedLinkId(null);
       onSelect(selectedElement);
     },
-    [onSelect],
+    [onSelect, selectLink],
   );
 
   const handleOverlaySelect = useCallback(
@@ -113,11 +127,16 @@ export function GraphViewer({
       const selectedElement = selectedElementFromEdgeData(edge.data() as Record<string, unknown>);
       if (!selectedElement) return;
 
-      setSelectedSegmentId(selectedElement.kind === 'node' ? selectedElement.data.id : null);
-      setSelectedLinkId(selectedElement.kind === 'edge' ? edgeId : null);
+      if (selectedElement.kind === 'edge') {
+        selectLink(selectedElement.data);
+        return;
+      }
+
+      setSelectedSegmentId(selectedElement.data.id);
+      setSelectedLinkId(null);
       onSelect(selectedElement);
     },
-    [onSelect],
+    [onSelect, selectLink],
   );
 
   const handleUnselect = useCallback(() => {
@@ -138,6 +157,7 @@ export function GraphViewer({
     });
 
     cy.on('select', 'edge', handleSelect);
+    cy.on('tap', 'edge', handleSelect);
     cy.on('unselect', 'edge', handleUnselect);
 
     cyRef.current = cy;
@@ -180,9 +200,6 @@ export function GraphViewer({
       );
     }
 
-    const elements = graphToCytoscape(graph, { themeMode, colorByCoverage });
-    cy.add([...elements.nodes, ...elements.edges]);
-
     const defaultedLayout = layout === 'fcose' ? chooseDefaultLayout(graph) : layout;
     const effectiveLayout =
       graph.stats.nodeCount > LARGE_GRAPH_NODE_THRESHOLD ||
@@ -190,10 +207,21 @@ export function GraphViewer({
         ? 'grid'
         : defaultedLayout;
 
-    const layoutOptions = getLayoutOptions(effectiveLayout);
+    const elements = graphToCytoscape(graph, { themeMode, colorByCoverage });
+    if (effectiveLayout === 'bandage') {
+      for (const edge of elements.edges) {
+        if (edge.classes === 'gfa-link') {
+          edge.classes = 'gfa-link bandage-overlay-hidden';
+        }
+      }
+    }
+
+    cy.add([...elements.nodes, ...elements.edges]);
+
+    const layoutOptions = getLayoutOptions(effectiveLayout, graph);
     const layoutRun = cy.layout(layoutOptions);
     cy.one('layoutstop', () => {
-      cy.fit(undefined, 40);
+      cy.fit(undefined, effectiveLayout === 'bandage' ? 120 : 40);
     });
     layoutRun.run();
   }, [graph, layout, themeMode, colorByCoverage]);
@@ -219,7 +247,9 @@ export function GraphViewer({
         themeMode={themeMode}
         colorByCoverage={colorByCoverage}
         selectedSegmentId={selectedSegmentId}
+        layout={layout}
         selectedLinkId={selectedLinkId}
+        onLinkSelect={selectLink}
         onSelectElement={handleOverlaySelect}
       />
     </div>

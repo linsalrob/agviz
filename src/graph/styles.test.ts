@@ -34,6 +34,13 @@ describe('createStylesheet', () => {
     expect(link['source-arrow-shape']).toBe('none');
   });
 
+  it('can hide Cytoscape links when Bandage-style overlay links are rendered', () => {
+    const hiddenLink = findStyle(createStylesheet('light'), 'edge.gfa-link.bandage-overlay-hidden');
+    expect(hiddenLink['opacity']).toBe(0);
+    expect(hiddenLink['line-opacity']).toBe(0);
+    expect(hiddenLink['width']).toBe(0);
+  });
+
   it('uses theme-specific palette values', () => {
     const light = getThemePalette('light');
     const dark = getThemePalette('dark');
