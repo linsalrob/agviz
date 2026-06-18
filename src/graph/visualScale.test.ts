@@ -65,6 +65,16 @@ describe('segmentVisualLength', () => {
     expect(segmentVisualLength(1_000_000, uniformConfig)).toBe(75);
   });
 
+  it('uses the uniform visual length for unknown lengths in uniform mode', () => {
+    const uniformConfig: SegmentLengthScaleConfig = {
+      ...DEFAULT_SEGMENT_LENGTH_SCALE,
+      mode: 'uniform',
+      uniformLengthPx: 75,
+    };
+
+    expect(segmentVisualLength(undefined, uniformConfig)).toBe(75);
+  });
+
   it('returns finite values', () => {
     expect(Number.isFinite(segmentVisualLength(undefined))).toBe(true);
     expect(Number.isFinite(segmentVisualLength(2000))).toBe(true);

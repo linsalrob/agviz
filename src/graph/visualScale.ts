@@ -35,12 +35,12 @@ export function segmentVisualLength(
   const min = config.minVisualLengthPx;
   const max = config.maxVisualLengthPx;
 
-  if (!lengthBp || lengthBp <= 0) {
-    return min;
-  }
-
   if (config.mode === 'uniform') {
     return clamp(config.uniformLengthPx ?? 60, min, max);
+  }
+
+  if (!lengthBp || lengthBp <= 0) {
+    return min;
   }
 
   if (config.mode === 'linear') {

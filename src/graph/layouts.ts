@@ -378,6 +378,16 @@ function oppositeEndpointId(endpoint: string, segmentId: string): string {
     : endpointId(segmentId, 'left');
 }
 
+function tinyGraphSegmentLength(lengthBp: number | undefined, lengthScale: LengthScaleConfig): number {
+  const visualLength = contigVisualLength(lengthBp, lengthScale);
+
+  if (lengthScale.mode === 'uniform' || visualLength > lengthScale.minVisualLengthPx) {
+    return visualLength;
+  }
+
+  return BANDAGE_TINY_MIN_SEGMENT_LENGTH;
+}
+
 function twoSegmentBandageEndpointPositions(
   graph: AssemblyGraph,
   lengthScale: LengthScaleConfig,
@@ -401,14 +411,8 @@ function twoSegmentBandageEndpointPositions(
   );
   const sourceOuterEndpointId = oppositeEndpointId(sourceEndpointId, source.id);
   const targetOuterEndpointId = oppositeEndpointId(targetEndpointId, target.id);
-  const sourceLength = Math.max(
-    contigVisualLength(source.length, lengthScale),
-    BANDAGE_TINY_MIN_SEGMENT_LENGTH,
-  );
-  const targetLength = Math.max(
-    contigVisualLength(target.length, lengthScale),
-    BANDAGE_TINY_MIN_SEGMENT_LENGTH,
-  );
+  const sourceLength = tinyGraphSegmentLength(source.length, lengthScale);
+  const targetLength = tinyGraphSegmentLength(target.length, lengthScale);
 
   return {
     [sourceOuterEndpointId]: { x: -(BANDAGE_TINY_LINK_HALF_LENGTH + sourceLength), y: 0 },

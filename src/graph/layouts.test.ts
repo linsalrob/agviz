@@ -209,6 +209,41 @@ describe('bandageEndpointPositions', () => {
     expect(positions['contig2::__right'].x).toBeLessThan(positions['contig2::__left'].x);
   });
 
+  it('honors uniform segment length in two-segment Bandage-style layouts', () => {
+    const graph: AssemblyGraph = {
+      nodes: [
+        { id: 'contig1', label: 'contig1', length: 8, tags: {} },
+        { id: 'contig2', label: 'contig2', length: undefined, tags: {} },
+      ],
+      edges: [
+        {
+          id: 'contig1-contig2',
+          source: 'contig1',
+          target: 'contig2',
+          sourceOrient: '+',
+          targetOrient: '-',
+          tags: {},
+        },
+      ],
+      warnings: [],
+      stats: { nodeCount: 2, edgeCount: 1, totalLength: 8 },
+    };
+
+    const positions = bandageEndpointPositions(graph, {
+      mode: 'uniform',
+      minVisualLengthPx: 12,
+      maxVisualLengthPx: 260,
+      uniformLengthPx: 60,
+    });
+
+    expect(
+      Math.abs(positions['contig1::__right'].x - positions['contig1::__left'].x),
+    ).toBe(60);
+    expect(
+      Math.abs(positions['contig2::__left'].x - positions['contig2::__right'].x),
+    ).toBe(60);
+  });
+
   it('lays a simple Bandage-style cycle as adjacent ring segments with short links', () => {
     const graph: AssemblyGraph = {
       nodes: [
