@@ -71,9 +71,22 @@ describe('getLayoutOptions', () => {
     expect(padding).toBeGreaterThan(0);
   });
 
-  it('fcose layout has compact idealEdgeLength', () => {
+  it('fcose layout uses scaled contig lengths as ideal body edge lengths', () => {
     const opts = getLayoutOptions('fcose') as unknown as Record<string, unknown>;
-    expect(Number(opts['idealEdgeLength'])).toBeLessThanOrEqual(30);
+    const idealEdgeLength = opts['idealEdgeLength'] as (edge: {
+      data: (key: string) => unknown;
+    }) => number;
+
+    expect(
+      idealEdgeLength({
+        data: (key: string) => (key === 'kind' ? 'contig-body' : 120),
+      }),
+    ).toBe(120);
+    expect(
+      idealEdgeLength({
+        data: (key: string) => (key === 'kind' ? 'gfa-link' : undefined),
+      }),
+    ).toBeLessThanOrEqual(30);
   });
 
   it('fcose layout has nodeDimensionsIncludeLabels: false', () => {

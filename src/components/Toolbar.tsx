@@ -1,6 +1,7 @@
 import type { LayoutName } from '../graph/layouts';
 import { LAYOUT_NAMES } from '../graph/layouts';
 import type { ThemeMode } from '../graph/coverageColors';
+import type { SegmentLengthScaleMode } from '../graph/visualScale';
 
 const LAYOUT_LABELS: Record<LayoutName, string> = {
   fcose: 'fCoSE',
@@ -15,6 +16,8 @@ const LAYOUT_LABELS: Record<LayoutName, string> = {
 interface ToolbarProps {
   layout: LayoutName;
   onLayoutChange: (layout: LayoutName) => void;
+  segmentLengthScaleMode: SegmentLengthScaleMode;
+  onSegmentLengthScaleModeChange: (mode: SegmentLengthScaleMode) => void;
   onLoadExample: (example: string) => void;
   themeMode: ThemeMode;
   onThemeModeChange: (themeMode: ThemeMode) => void;
@@ -25,6 +28,8 @@ interface ToolbarProps {
 export function Toolbar({
   layout,
   onLayoutChange,
+  segmentLengthScaleMode,
+  onSegmentLengthScaleModeChange,
   onLoadExample,
   themeMode,
   onThemeModeChange,
@@ -44,6 +49,19 @@ export function Toolbar({
             {LAYOUT_LABELS[name]}
           </option>
         ))}
+      </select>
+
+      <span className="toolbar-divider" aria-hidden="true" />
+
+      <span className="toolbar-label">Segment length scale:</span>
+      <select
+        value={segmentLengthScaleMode}
+        onChange={(e) => onSegmentLengthScaleModeChange(e.target.value as SegmentLengthScaleMode)}
+        aria-label="Segment length scale"
+      >
+        <option value="log">Log</option>
+        <option value="linear">Linear</option>
+        <option value="uniform">Uniform</option>
       </select>
 
       <span className="toolbar-divider" aria-hidden="true" />

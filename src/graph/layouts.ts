@@ -1,7 +1,11 @@
 import type cytoscape from 'cytoscape';
 import type { AssemblyEdge, AssemblyGraph } from './graphTypes';
 import { endpointId, mapLinkEndpoints, type EndpointSide } from './cytoscapeElements';
-import { contigVisualLength, type LengthScaleConfig } from './visualScale';
+import {
+  DEFAULT_SEGMENT_LENGTH_SCALE,
+  contigVisualLength,
+  type LengthScaleConfig,
+} from './visualScale';
 
 export type LayoutName =
   | 'fcose'
@@ -42,6 +46,7 @@ const BANDAGE_BUBBLE_SPLIT_Y = 130;
 const BANDAGE_BUBBLE_JOIN_Y = -105;
 const BANDAGE_BUBBLE_BRANCH_OFFSET = 25;
 const BANDAGE_LENGTH_SCALE: LengthScaleConfig = {
+  ...DEFAULT_SEGMENT_LENGTH_SCALE,
   pixelsPerBase: 0.035,
   minVisualLengthPx: 22,
   maxVisualLengthPx: 280,
@@ -195,7 +200,10 @@ function addSegmentEndpointPositions(
   }
 }
 
-function buildSegmentJunctions(graph: AssemblyGraph): SegmentJunction[] {
+function buildSegmentJunctions(
+  graph: AssemblyGraph,
+  lengthScale: LengthScaleConfig,
+): SegmentJunction[] {
   const disjointSet = new DisjointSet();
   const nodeIds = new Set(graph.nodes.map((node) => node.id));
 
@@ -221,7 +229,7 @@ function buildSegmentJunctions(graph: AssemblyGraph): SegmentJunction[] {
     segmentId: node.id,
     leftRoot: disjointSet.find(endpointId(node.id, 'left')),
     rightRoot: disjointSet.find(endpointId(node.id, 'right')),
-    visualLength: contigVisualLength(node.length, BANDAGE_LENGTH_SCALE),
+    visualLength: contigVisualLength(node.length, lengthScale),
   }));
 }
 
@@ -370,7 +378,10 @@ function oppositeEndpointId(endpoint: string, segmentId: string): string {
     : endpointId(segmentId, 'left');
 }
 
-function twoSegmentBandageEndpointPositions(graph: AssemblyGraph): Record<string, Point> | null {
+function twoSegmentBandageEndpointPositions(
+  graph: AssemblyGraph,
+  lengthScale: LengthScaleConfig,
+): Record<string, Point> | null {
   if (graph.nodes.length !== 2 || graph.edges.length !== 1) {
     return null;
   }
@@ -391,11 +402,11 @@ function twoSegmentBandageEndpointPositions(graph: AssemblyGraph): Record<string
   const sourceOuterEndpointId = oppositeEndpointId(sourceEndpointId, source.id);
   const targetOuterEndpointId = oppositeEndpointId(targetEndpointId, target.id);
   const sourceLength = Math.max(
-    contigVisualLength(source.length, BANDAGE_LENGTH_SCALE),
+    contigVisualLength(source.length, lengthScale),
     BANDAGE_TINY_MIN_SEGMENT_LENGTH,
   );
   const targetLength = Math.max(
-    contigVisualLength(target.length, BANDAGE_LENGTH_SCALE),
+    contigVisualLength(target.length, lengthScale),
     BANDAGE_TINY_MIN_SEGMENT_LENGTH,
   );
 
@@ -454,7 +465,10 @@ function pointOnCycle(angle: number, radius: number): Point {
   };
 }
 
-function simpleCycleBandageEndpointPositions(graph: AssemblyGraph): Record<string, Point> | null {
+function simpleCycleBandageEndpointPositions(
+  graph: AssemblyGraph,
+  lengthScale: LengthScaleConfig,
+): Record<string, Point> | null {
   const orderedEdges = orderedDirectedCycle(graph);
   if (!orderedEdges) {
     return null;
@@ -463,7 +477,7 @@ function simpleCycleBandageEndpointPositions(graph: AssemblyGraph): Record<strin
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
   const totalVisualLength = orderedEdges.reduce((sum, edge) => {
     const source = nodesById.get(edge.source);
-    return sum + contigVisualLength(source?.length, BANDAGE_LENGTH_SCALE);
+    return sum + contigVisualLength(source?.length, lengthScale);
   }, 0);
   if (totalVisualLength <= 0) {
     return null;
@@ -474,7 +488,7 @@ function simpleCycleBandageEndpointPositions(graph: AssemblyGraph): Record<strin
 
   for (const edge of orderedEdges) {
     const source = nodesById.get(edge.source);
-    const sourceVisualLength = contigVisualLength(source?.length, BANDAGE_LENGTH_SCALE);
+    const sourceVisualLength = contigVisualLength(source?.length, lengthScale);
     angle += (sourceVisualLength / totalVisualLength) * Math.PI * 2;
 
     const { sourceEndpointId, targetEndpointId } = mapLinkEndpoints(
@@ -633,17 +647,20 @@ function simpleBubbleBandageEndpointPositions(graph: AssemblyGraph): Record<stri
   return Object.keys(positions).length === expectedEndpointCount ? positions : null;
 }
 
-export function bandageEndpointPositions(graph: AssemblyGraph): Record<string, Point> {
+export function bandageEndpointPositions(
+  graph: AssemblyGraph,
+  lengthScale: LengthScaleConfig = BANDAGE_LENGTH_SCALE,
+): Record<string, Point> {
   if (graph.nodes.length === 0) {
     return {};
   }
 
-  const tinyPositions = twoSegmentBandageEndpointPositions(graph);
+  const tinyPositions = twoSegmentBandageEndpointPositions(graph, lengthScale);
   if (tinyPositions) {
     return tinyPositions;
   }
 
-  const cyclePositions = simpleCycleBandageEndpointPositions(graph);
+  const cyclePositions = simpleCycleBandageEndpointPositions(graph, lengthScale);
   if (cyclePositions) {
     return cyclePositions;
   }
@@ -653,7 +670,7 @@ export function bandageEndpointPositions(graph: AssemblyGraph): Record<string, P
     return bubblePositions;
   }
 
-  const segments = buildSegmentJunctions(graph);
+  const segments = buildSegmentJunctions(graph, lengthScale);
   const adjacency = buildJunctionAdjacency(segments);
   const components = junctionComponents(adjacency);
   const packedJunctionPositions: Record<string, Point> = {};
@@ -718,10 +735,11 @@ export function bandageEndpointPositions(graph: AssemblyGraph): Record<string, P
 export function getLayoutOptions(
   name: LayoutName,
   graph?: AssemblyGraph,
+  lengthScale: LengthScaleConfig = BANDAGE_LENGTH_SCALE,
 ): cytoscape.LayoutOptions {
   switch (name) {
     case 'bandage': {
-      const positions = graph ? bandageEndpointPositions(graph) : {};
+      const positions = graph ? bandageEndpointPositions(graph, lengthScale) : {};
 
       return {
         name: 'preset',
@@ -738,7 +756,13 @@ export function getLayoutOptions(
         fit: true,
         padding: DEFAULT_LAYOUT_PADDING,
         nodeDimensionsIncludeLabels: false,
-        idealEdgeLength: FCOSE_IDEAL_EDGE_LENGTH,
+        idealEdgeLength: (edge: cytoscape.EdgeSingular) => {
+          if (edge.data('kind') === 'contig-body') {
+            return Number(edge.data('visualLength')) || FCOSE_IDEAL_EDGE_LENGTH;
+          }
+
+          return FCOSE_IDEAL_EDGE_LENGTH;
+        },
         nodeRepulsion: CONTIG_FCOSE_NODE_REPULSION,
         gravity: CONTIG_FCOSE_GRAVITY,
         gravityRangeCompound: 1.5,

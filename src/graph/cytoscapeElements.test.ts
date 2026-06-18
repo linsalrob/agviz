@@ -29,8 +29,10 @@ const sampleGraph: AssemblyGraph = {
 };
 
 const testLengthScale: LengthScaleConfig = {
+  mode: 'linear',
   pixelsPerBase: 0.1,
   minVisualLengthPx: 0,
+  maxVisualLengthPx: 1000,
 };
 
 function buildElements(options: CytoscapeGraphOptions = {}) {

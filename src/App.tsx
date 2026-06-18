@@ -10,6 +10,7 @@ import type { AssemblyGraph } from './graph/graphTypes';
 import type { AssemblyNode, AssemblyEdge } from './graph/graphTypes';
 import type { LayoutName } from './graph/layouts';
 import type { ThemeMode } from './graph/coverageColors';
+import type { SegmentLengthScaleMode } from './graph/visualScale';
 import './App.css';
 
 type SelectedElement =
@@ -36,6 +37,8 @@ function App() {
   const [graph, setGraph] = useState<AssemblyGraph | null>(null);
   const [selected, setSelected] = useState<SelectedElement>(null);
   const [layout, setLayout] = useState<LayoutName>('fcose');
+  const [segmentLengthScaleMode, setSegmentLengthScaleMode] =
+    useState<SegmentLengthScaleMode>('log');
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => getInitialTheme());
   const [colorByCoverage, setColorByCoverage] = useState<boolean>(false);
   const [fileName, setFileName] = useState<string | undefined>();
@@ -91,6 +94,8 @@ function App() {
         <Toolbar
           layout={layout}
           onLayoutChange={setLayout}
+          segmentLengthScaleMode={segmentLengthScaleMode}
+          onSegmentLengthScaleModeChange={setSegmentLengthScaleMode}
           onLoadExample={loadExample}
           themeMode={themeMode}
           onThemeModeChange={handleThemeModeChange}
@@ -129,6 +134,7 @@ function App() {
           onSelect={setSelected}
           themeMode={themeMode}
           colorByCoverage={colorByCoverage}
+          segmentLengthScaleMode={segmentLengthScaleMode}
         />
         <InspectorPanel selected={selected} />
       </div>

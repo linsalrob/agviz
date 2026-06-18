@@ -28,7 +28,14 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 3. The assembly graph renders with segments as nodes and links as edges.
 4. Click a node to see its metadata (ID, length, coverage, sequence, tags) in the inspector panel.
 5. Click an edge to see link metadata (source, target, orientations, overlap, tags).
-6. Use the layout selector to switch between `fcose`, `cose`, `breadthfirst`, `circle`, and `grid` layouts.
+6. Use the layout selector to switch between `fcose`, `bandage`, `circle`, `concentric`, `cose`, `breadthfirst`, and `grid` layouts.
+7. Use **Segment length scale** to switch visual segment lengths between `Log`, `Linear`, and `Uniform`.
+
+## Rendering model
+
+AgViz uses log-scaled segment lengths by default because assembly graph segments can range from a few base pairs to millions of base pairs. Log scaling keeps longer contigs visibly longer while capping visual length so one large segment does not dominate the canvas.
+
+Linear and uniform modes are available from the toolbar. These scales affect readability only; the exact biological length in bp is preserved in the graph model and shown in the inspector.
 
 ## Example files
 

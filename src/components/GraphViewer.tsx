@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import cytoscape from 'cytoscape';
 import fcose from 'cytoscape-fcose';
 import type { AssemblyGraph } from '../graph/graphTypes';
@@ -13,6 +13,11 @@ import {
 } from '../graph/layouts';
 import type { LayoutName } from '../graph/layouts';
 import type { ThemeMode } from '../graph/coverageColors';
+import {
+  DEFAULT_SEGMENT_LENGTH_SCALE,
+  type SegmentLengthScaleConfig,
+  type SegmentLengthScaleMode,
+} from '../graph/visualScale';
 import { GraphOverlay } from './GraphOverlay';
 
 cytoscape.use(fcose);
@@ -65,6 +70,7 @@ interface GraphViewerProps {
   onSelect: (element: SelectedElement) => void;
   themeMode: ThemeMode;
   colorByCoverage: boolean;
+  segmentLengthScaleMode?: SegmentLengthScaleMode;
 }
 
 export function GraphViewer({
@@ -73,12 +79,20 @@ export function GraphViewer({
   onSelect,
   themeMode,
   colorByCoverage,
+  segmentLengthScaleMode = 'log',
 }: GraphViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
   const [cyInstance, setCyInstance] = useState<cytoscape.Core | null>(null);
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
+  const lengthScale = useMemo<SegmentLengthScaleConfig>(
+    () => ({
+      ...DEFAULT_SEGMENT_LENGTH_SCALE,
+      mode: segmentLengthScaleMode,
+    }),
+    [segmentLengthScaleMode],
+  );
 
   const selectLink = useCallback(
     (edge: AssemblyEdge) => {
@@ -207,7 +221,7 @@ export function GraphViewer({
         ? 'grid'
         : defaultedLayout;
 
-    const elements = graphToCytoscape(graph, { themeMode, colorByCoverage });
+    const elements = graphToCytoscape(graph, { themeMode, colorByCoverage, lengthScale });
     if (effectiveLayout === 'bandage') {
       for (const edge of elements.edges) {
         if (edge.classes === 'gfa-link') {
@@ -218,13 +232,13 @@ export function GraphViewer({
 
     cy.add([...elements.nodes, ...elements.edges]);
 
-    const layoutOptions = getLayoutOptions(effectiveLayout, graph);
+    const layoutOptions = getLayoutOptions(effectiveLayout, graph, lengthScale);
     const layoutRun = cy.layout(layoutOptions);
     cy.one('layoutstop', () => {
       cy.fit(undefined, effectiveLayout === 'bandage' ? 120 : 40);
     });
     layoutRun.run();
-  }, [graph, layout, themeMode, colorByCoverage]);
+  }, [graph, layout, themeMode, colorByCoverage, lengthScale]);
 
   const palette = getThemePalette(themeMode);
 
@@ -249,6 +263,7 @@ export function GraphViewer({
         selectedSegmentId={selectedSegmentId}
         layout={layout}
         selectedLinkId={selectedLinkId}
+        lengthScale={lengthScale}
         onLinkSelect={selectLink}
         onSelectElement={handleOverlaySelect}
       />

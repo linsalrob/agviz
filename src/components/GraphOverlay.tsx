@@ -9,7 +9,11 @@ import {
   coverageToColor,
   defaultContigColor,
 } from '../graph/coverageColors';
-import { contigVisualThickness } from '../graph/visualScale';
+import {
+  DEFAULT_SEGMENT_LENGTH_SCALE,
+  contigVisualThickness,
+  type SegmentLengthScaleConfig,
+} from '../graph/visualScale';
 import { endpointId, graphToCytoscape, mapLinkEndpoints } from '../graph/cytoscapeElements';
 import { deduplicateReciprocalLinks } from '../graph/linkDeduplication';
 import { curvedSegmentPath, majorArcPath, graphCentre, type Point } from '../graph/arcGeometry';
@@ -183,6 +187,7 @@ export interface GraphOverlayProps {
   selectedSegmentId: string | null;
   layout?: LayoutName;
   selectedLinkId?: string | null;
+  lengthScale?: SegmentLengthScaleConfig;
   onLinkSelect?: (edge: AssemblyEdge) => void;
   onSelectElement?: (selection: { kind: 'segment' | 'link'; id: string }) => void;
 }
@@ -206,6 +211,7 @@ export function GraphOverlay({
   selectedSegmentId,
   layout,
   selectedLinkId = null,
+  lengthScale = DEFAULT_SEGMENT_LENGTH_SCALE,
   onLinkSelect,
   onSelectElement,
 }: GraphOverlayProps) {
@@ -334,7 +340,7 @@ export function GraphOverlay({
         });
       });
     } else {
-      const elements = graphToCytoscape(graph, { themeMode, colorByCoverage });
+      const elements = graphToCytoscape(graph, { themeMode, colorByCoverage, lengthScale });
       for (const edge of elements.edges) {
         const data = edge.data as Record<string, unknown>;
         if (data.kind !== 'gfa-link') continue;
@@ -372,7 +378,7 @@ export function GraphOverlay({
 
     setSegmentPaths(newPaths);
     setLinkPaths(newLinkPaths);
-  }, [cy, graph, themeMode, colorByCoverage, isBandageStyle]);
+  }, [cy, graph, themeMode, colorByCoverage, isBandageStyle, lengthScale]);
 
   // Keep a stable ref to the latest buildPaths so the RAF callback never goes stale
   const buildPathsRef = useRef(buildPaths);
@@ -404,10 +410,10 @@ export function GraphOverlay({
     };
   }, [cy, buildPaths, scheduleBuild]);
 
-  // Rebuild when graph content, theme, or coverage mode changes
+  // Rebuild when graph content, theme, coverage mode, or length scale changes
   useEffect(() => {
     buildPaths();
-  }, [graph, themeMode, colorByCoverage, buildPaths]);
+  }, [graph, themeMode, colorByCoverage, lengthScale, buildPaths]);
 
   useEffect(() => {
     setPressedLinkId(null);

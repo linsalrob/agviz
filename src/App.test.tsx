@@ -3,8 +3,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import App from './App';
 
+const graphViewerSpy = vi.hoisted(() => vi.fn());
+
 vi.mock('./components/GraphViewer', () => ({
-  GraphViewer: () => <div aria-label="Assembly graph canvas" role="img" />,
+  GraphViewer: (props: { segmentLengthScaleMode?: string }) => {
+    graphViewerSpy(props);
+    return (
+      <div
+        aria-label="Assembly graph canvas"
+        data-scale-mode={props.segmentLengthScaleMode}
+        role="img"
+      />
+    );
+  },
 }));
 
 describe('App header', () => {
@@ -19,6 +30,7 @@ describe('App header', () => {
 describe('App theme controls', () => {
   beforeEach(() => {
     localStorage.clear();
+    graphViewerSpy.mockClear();
   });
 
   it('defaults to light theme', () => {
@@ -57,5 +69,32 @@ describe('App theme controls', () => {
     render(<App />);
 
     expect(screen.getByRole('option', { name: 'Bandage-style' })).toBeInTheDocument();
+  });
+
+  it('defaults the segment length scale control to Log', () => {
+    render(<App />);
+
+    const select = screen.getByRole('combobox', { name: /segment length scale/i });
+    expect(select).toHaveValue('log');
+    expect(screen.getByRole('img', { name: /assembly graph canvas/i })).toHaveAttribute(
+      'data-scale-mode',
+      'log',
+    );
+  });
+
+  it('updates rendering config when the segment length scale mode changes', () => {
+    render(<App />);
+
+    const select = screen.getByRole('combobox', { name: /segment length scale/i });
+    fireEvent.change(select, { target: { value: 'linear' } });
+
+    expect(select).toHaveValue('linear');
+    expect(screen.getByRole('img', { name: /assembly graph canvas/i })).toHaveAttribute(
+      'data-scale-mode',
+      'linear',
+    );
+    expect(graphViewerSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ segmentLengthScaleMode: 'linear' }),
+    );
   });
 });

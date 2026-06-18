@@ -14,7 +14,12 @@ describe('integration: GFA -> parseGfa -> gfaToGraph -> graphToCytoscape', () =>
   const parsed = parseGfa(integrationGfa);
   const graph = gfaToGraph(parsed);
   const elements = graphToCytoscape(graph, {
-    lengthScale: { pixelsPerBase: 0.1, minVisualLengthPx: 0 },
+    lengthScale: {
+      mode: 'linear',
+      pixelsPerBase: 0.1,
+      minVisualLengthPx: 0,
+      maxVisualLengthPx: 1000,
+    },
     themeMode: 'light',
     colorByCoverage: true,
   });
@@ -69,7 +74,12 @@ describe('integration: GFA -> parseGfa -> gfaToGraph -> graphToCytoscape', () =>
   it('renders one visible gfa-link per reciprocal pair', () => {
     const reciprocalGraph = gfaToGraph(parseGfa(reciprocalLinksGfa));
     const reciprocalElements = graphToCytoscape(reciprocalGraph, {
-      lengthScale: { pixelsPerBase: 0.1, minVisualLengthPx: 0 },
+      lengthScale: {
+        mode: 'linear',
+        pixelsPerBase: 0.1,
+        minVisualLengthPx: 0,
+        maxVisualLengthPx: 1000,
+      },
       themeMode: 'light',
       colorByCoverage: false,
     });

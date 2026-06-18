@@ -126,4 +126,45 @@ describe('GraphViewer', () => {
     const link = addedElements.find((element) => element.data.kind === 'gfa-link');
     expect(link?.classes).toBe('gfa-link bandage-overlay-hidden');
   });
+
+  it('rebuilds contig visual lengths when the scale mode changes', () => {
+    const { rerender } = render(
+      <GraphViewer
+        graph={tinyGraph}
+        layout="fcose"
+        onSelect={vi.fn()}
+        themeMode="light"
+        colorByCoverage={false}
+        segmentLengthScaleMode="log"
+      />,
+    );
+    const cy = vi.mocked(cytoscape).mock.results[0].value;
+    const firstElements = cy.add.mock.calls.at(-1)?.[0] as Array<{
+      data: { kind?: string; segmentId?: string; visualLength?: number };
+    }>;
+    const firstA = firstElements.find(
+      (element) => element.data.kind === 'contig-body' && element.data.segmentId === 'contig1',
+    );
+
+    rerender(
+      <GraphViewer
+        graph={tinyGraph}
+        layout="fcose"
+        onSelect={vi.fn()}
+        themeMode="light"
+        colorByCoverage={false}
+        segmentLengthScaleMode="uniform"
+      />,
+    );
+
+    const secondElements = cy.add.mock.calls.at(-1)?.[0] as Array<{
+      data: { kind?: string; segmentId?: string; visualLength?: number };
+    }>;
+    const secondA = secondElements.find(
+      (element) => element.data.kind === 'contig-body' && element.data.segmentId === 'contig1',
+    );
+
+    expect(firstA?.data.visualLength).not.toBe(secondA?.data.visualLength);
+    expect(secondA?.data.visualLength).toBe(60);
+  });
 });

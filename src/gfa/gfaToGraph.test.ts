@@ -114,6 +114,17 @@ describe('estimateSegmentLength', () => {
     expect(estimateSegmentLength(segment)).toBe(8);
   });
 
+  it('prefers sequence length over LN tag when sequence is present', () => {
+    const segment: GfaSegment = {
+      type: 'S',
+      name: 'contig1',
+      sequence: 'ACGT',
+      rawLine: 'S\tcontig1\tACGT\tLN:i:1000',
+      tags: [{ name: 'LN', type: 'i', value: '1000' }],
+    };
+    expect(estimateSegmentLength(segment)).toBe(4);
+  });
+
   it('uses LN tag when sequence is *', () => {
     const segment: GfaSegment = {
       type: 'S',

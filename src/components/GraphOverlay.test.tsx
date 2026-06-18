@@ -671,7 +671,7 @@ describe('GraphOverlay', () => {
   it('renders a non-Bandage link hit path that calls the selection handler', async () => {
     const cy = makeCyMock(twoSegPositions);
     const onSelectElement = vi.fn();
-    render(
+    const { rerender } = render(
       <GraphOverlay
         cy={cy as never}
         graph={twoSegmentGraph}
@@ -690,7 +690,30 @@ describe('GraphOverlay', () => {
     expect(hit).toHaveAttribute('pointer-events', 'stroke');
     expect(hit).toHaveAttribute('stroke-width', '12');
 
-    fireEvent.click(hit);
+    rerender(
+      <GraphOverlay
+        cy={cy as never}
+        graph={twoSegmentGraph}
+        themeMode="light"
+        colorByCoverage={false}
+        selectedSegmentId={null}
+        lengthScale={{
+          mode: 'uniform',
+          minVisualLengthPx: 12,
+          maxVisualLengthPx: 260,
+          uniformLengthPx: 60,
+        }}
+        onSelectElement={onSelectElement}
+      />,
+    );
+
+    const rerenderedHit = await waitFor(() => {
+      const linkHit = document.querySelector('path.graph-overlay-link-hit');
+      expect(linkHit).not.toBeNull();
+      return linkHit as SVGPathElement;
+    });
+
+    fireEvent.click(rerenderedHit);
     expect(onSelectElement).toHaveBeenCalledWith({
       kind: 'link',
       id: 'link::A+|B+|100M|A-B::0',
@@ -700,7 +723,7 @@ describe('GraphOverlay', () => {
   it('renders a segment hit path that calls the selection handler', async () => {
     const cy = makeCyMock(twoSegPositions);
     const onSelectElement = vi.fn();
-    const { getByTestId } = render(
+    const { getByTestId, rerender } = render(
       <GraphOverlay
         cy={cy as never}
         graph={twoSegmentGraph}
@@ -715,7 +738,26 @@ describe('GraphOverlay', () => {
     expect(hit).toHaveAttribute('pointer-events', 'stroke');
     expect(hit).toHaveAttribute('stroke-width', '14');
 
-    fireEvent.click(hit);
+    rerender(
+      <GraphOverlay
+        cy={cy as never}
+        graph={twoSegmentGraph}
+        themeMode="light"
+        colorByCoverage={false}
+        selectedSegmentId={null}
+        lengthScale={{
+          mode: 'linear',
+          minVisualLengthPx: 12,
+          maxVisualLengthPx: 260,
+          pixelsPerBase: 0.05,
+        }}
+        onSelectElement={onSelectElement}
+      />,
+    );
+
+    const rerenderedHit = await waitFor(() => getByTestId('segment-hit-A'));
+
+    fireEvent.click(rerenderedHit);
     expect(onSelectElement).toHaveBeenCalledWith({ kind: 'segment', id: 'A' });
   });
 
