@@ -1,5 +1,15 @@
 # AgViz
 
+
+[![Edwards Lab](https://img.shields.io/badge/Bioinformatics-EdwardsLab-03A9F4)](https://edwards.flinders.edu.au/)
+[![-viz](https://img.shields.io/badge/FAME--viz-03A9F4)](https://edwards.flinders.edu.au/viz/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![GitHub language count](https://img.shields.io/github/languages/count/linsalrob/bamviz)
+[![Documentation Status](https://readthedocs.org/projects/genbank-to/badge/?version=latest)](https://genbank-to.readthedocs.io/en/latest/?badge=latest)
+
+
+![-viz bioinformatics](images/viz.png)
+
 **AgViz** is a browser-based viewer for genome assembly graphs in GFA format.
 
 Use it online:
